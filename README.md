@@ -2,7 +2,7 @@
 
 This repository uses processed datasets for simulations regarding quantum entanglement generation in open quantum systems. The raw data originate from the Mokeev dataset "Spin-based remote entanglement generation in open quantum systems" (DOI: 10.4121/d0d1007f-c27d-491d-b7e1-cc60e38047b4). Only relevant subsets/folders that can be viewed in their DATASET.zip folder are included here.
 
-The original dataset README on 4TU.ResearchData states that the files are released under the Creative Commons Attribution 4.0 license (CC BY 4.0). The CSV and JSON files in this repository were derived by down-sampling and reformatting those raw simulation outputs.
+The original dataset README on 4TU.ResearchData states that the files are released under the Creative Commons Attribution 4.0 license (CC BY 4.0). The CSV and JSON files in this repository were obtained from the Mokeev datast directly but some files were not used.
 
 ## Folder summaries
 
