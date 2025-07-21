@@ -51,7 +51,7 @@ p.add_argument("--heatmap", action="store_true",
 p.add_argument("--csv_out")
 a = p.parse_args()
 
-#Efferent noise (effective gamme) 
+#Effective gamma
 records=[]
 if a.surface_vals:
     vals = pd.read_csv(a.surface_vals, header=None).values
