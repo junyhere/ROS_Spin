@@ -24,3 +24,14 @@ def load_field( axis_path: Path = AXIS_JSON, vals_path: Path = VALS_CSV,) -> tup
 def gamma_base(B_rms: float, dt: float, k: float = 1.0e4) -> float:
     return min(0.25, k * B_rms * dt)
 
+#Baseline decoherence rate survival
+_weight_cache: dict[float, pd.DataFrame] = {}
+def weight_factor(tau: float, beta: float, protocol: str, directory: Path) -> float:
+    csv_path = directory / f"realistic_tau={tau}.csv"
+    if tau not in _weight_cache:
+        _weight_cache[tau] = pd.read_csv(csv_path)
+    tbl = _weight_cache[tau]
+    if protocol not in tbl.columns:
+        raise KeyError(f"{protocol} not found in {csv_path.name}")
+    interp = interp1d(tbl["beta"], tbl[protocol], fill_value="extrapolate")
+    return float(interp(beta))
