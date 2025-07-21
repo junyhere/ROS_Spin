@@ -25,13 +25,17 @@ def gamma_base(B_rms: float, dt: float, k: float = 1.0e4) -> float:
     return min(0.25, k * B_rms * dt)
 
 #Baseline decoherence rate survival under OU movement (OW or FB)
-_weight_cache: dict[float, pd.DataFrame] = {}
-def weight_factor(tau: float, beta: float, protocol: str, directory: Path) -> float:
-    csv_path = directory / f"realistic_tau={tau}.csv"
-    if tau not in _weight_cache:
-        _weight_cache[tau] = pd.read_csv(csv_path)
-    tbl = _weight_cache[tau]
+_weight_cache: dict[Path, pd.DataFrame] = {}
+def weight_factor(beta: float, protocol: str, directory: Path) -> float:
+    if directory not in _weight_cache:
+        files = sorted(directory.glob("Sim08*_OU_*.csv"))
+        if not files:
+            raise FileNotFoundError(f"No weighting CSVs found in {directory}")
+        df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
+        df = df.drop_duplicates(subset="beta").sort_values("beta")
+        _weight_cache[directory] = df
+    tbl = _weight_cache[directory]
     if protocol not in tbl.columns:
-        raise KeyError(f"{protocol} not found in {csv_path.name}")
+        raise KeyError(f"{protocol} not found in weighting data")
     interp = interp1d(tbl["beta"], tbl[protocol], fill_value="extrapolate")
     return float(interp(beta))
