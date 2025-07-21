@@ -41,7 +41,7 @@ p.add_argument("--surface_vals"); p.add_argument("--surface_axis")  #Sim06 file 
 p.add_argument("--tau_index", type=int); p.add_argument("--T0_index", type=int)
 p.add_argument("--tau", type=float)
 p.add_argument("--protocols", default="f_ow")
-p.add_argument("--weights", type=Path, default=Path("dataset/Fig09"))
+p.add_argument("--weights", type=Path, default=Path("dataset/Fig06"))
 p.add_argument("--phi_frac", type=float, default=0.0)
 p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
 p.add_argument("--shots", type=int, default=10000)
