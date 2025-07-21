@@ -2,7 +2,7 @@ from qiskit_aer.noise import (NoiseModel, amplitude_damping_error,
                                         phase_damping_error)
 
 
-def make_noise(gamma_amp: float, phi_frac: float = 0.0) -> NoiseModel:
+def noise_mod(gamma_amp: float, phi_frac: float = 0.0) -> NoiseModel:
     gamma_amp = gamma_amp * (1.0 - phi_frac)
     gamma_phi = gamma_amp * phi_frac
     noise = NoiseModel()
