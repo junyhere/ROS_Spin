@@ -6,27 +6,27 @@ The original dataset README on 4TU.ResearchData states that the files are releas
 
 ## Folder summaries
 
-### `data/fig03`
+### `dataset/fig03`
 * `Sim07_20240405_stochastic_field_axis_3.json` – arrays `t` and `x` defining a 201×101 grid of time and position values.
 * `Sim07_20240405_stochastic_field_vals_3.csv` – stochastic magnetic field values on that grid. Each row corresponds to a fixed `x` value and contains 201 comma-separated entries for the different time points.
 
-### `data/fig06`
+### `dataset/fig06`
 Four CSV files (`Sim08_20240405_S1_OW_vs_FB_OU_1.csv` … `_4.csv`) giving shuttling fidelities for different ranges of the dimensionless parameter `beta`.
 Columns:
 * `beta` – scaled shuttling speed.
 * `f_fb` – final fidelity for the feed-back protocol.
 * `f_ow` – final fidelity for the one-way protocol.
 
-### `data/fig08`
+### `dataset/fig08`
 * `Sim06_20231019_dephasing_surface_axis.csv` – 401 rows of `(v, T0)` values describing the scan parameters.
 * `Sim06_20231019_dephasing_surface_vals.csv` – a 400×400 grid of fidelities associated with those parameter pairs.
 
-### `data/fig09`
+### `dataset/fig09`
 CSV/JSON pairs named `realistic_tau=<value>` describing two-spin shuttling simulations for various dephasing times `tau`.
 * CSV columns: `v` (velocity) and `chi_ni` (numerical infidelity).
 * JSON files record the simulation settings such as magnetic field parameters and sample sizes.
 
-### `data/fig10-12`
+### `dataset/fig10-12`
 Files describing numerical error scaling for Monte Carlo (`*_MC.csv`) and numerical integration (`*_NI.csv`) approaches. Each CSV contains columns
 * `N` – number of time steps used in the solver,
 * `epsilon` – absolute error of the method,
