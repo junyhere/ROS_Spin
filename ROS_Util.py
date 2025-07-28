@@ -1,4 +1,4 @@
-rom pathlib import Path
+from pathlib import Path
 import json
 import numpy as np, pandas as pd
 from scipy.interpolate import interp1d
