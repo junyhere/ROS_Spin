@@ -4,8 +4,8 @@ import numpy as np, pandas as pd
 from scipy.interpolate import interp1d
 
 """#Absolute paths used, reproducing could dictate altering"""
-AXIS_JSON = Path("/dataset/Fig03/Sim07_20240405_stochastic_field_axis_3.json")
-VALS_CSV  = Path("/dataset/Fig03/Sim07_20240405_stochastic_field_vals_3.csv")
+AXIS_JSON = Path("/dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
+VALS_CSV  = Path("/dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
 
 def load_field( axis_path: Path = AXIS_JSON, vals_path: Path = VALS_CSV,) -> tuple[float, float]:
     """Return the mean time step and RMS field magnitude from dataset files."""
