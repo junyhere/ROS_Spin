@@ -55,8 +55,20 @@ a = p.parse_args()
 
 """Effective gamma for decoherence"""
 records=[]
+tau_val = None
+T0_val = None
 if a.surface_vals:
+    if not a.surface_axis:
+        sys.exit("--surface_axis required when using --surface_vals")
     vals = pd.read_csv(a.surface_vals, header=None).values
+    axis = pd.read_csv(a.surface_axis)
+    tau_axis = axis.iloc[:,0].to_numpy()
+    T0_axis = axis.iloc[:,1].to_numpy()
+    try:
+        tau_val = float(tau_axis[a.tau_index])
+        T0_val = float(T0_axis[a.T0_index])
+    except IndexError as e:
+        sys.exit(f"Index out of range: {e}")
     records.append(("surface", float(vals[a.tau_index, a.T0_index])))
 else:
     if not (a.json and a.csv):
@@ -74,8 +86,13 @@ for proto, g_eff in records:
     qc = build_rp_circuit(delay_ids=a.delay, trotter=a.trotter)
     noise = noise_mod(g_eff, a.phi_frac)
     s,t = counts_to_ros(simulate(qc, noise, a.shots))
-    rows.append({"delay":a.delay,"protocol":proto,
-                 "gamma":g_eff,"singlet":s,"triplet":t})
+    row = {"delay":a.delay,"protocol":proto,
+           "gamma":g_eff,"singlet":s,"triplet":t}
+    if tau_val is not None:
+        row["tau"] = tau_val
+    if T0_val is not None:
+        row["T0"] = T0_val
+    rows.append(row)
 
 df = pd.DataFrame(rows)
 
