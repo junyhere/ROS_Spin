@@ -3,6 +3,8 @@ import argparse, textwrap, sys
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import error
+
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 from noise import noise_mod
@@ -47,11 +49,22 @@ p.add_argument("--weights", type=Path, default=Path("dataset/fig06"))
 p.add_argument("--phi_frac", type=float, default=0.0)
 p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
 p.add_argument("--shots", type=int, default=10000)
+p.add_argument("--error_prefix")
+p.add_argument("--error_method", choices=["MC", "NI"])
+p.add_argument("--target_error", type=float,
+               help="Desired accuracy for parse_fig10.recommend_N")
 p.add_argument("--plot", action="store_true")
 p.add_argument("--heatmap", action="store_true",
                help="Accumulate multi‑protocol, multi‑delay results into a heat‑map")
 p.add_argument("--csv_out")
 a = p.parse_args()
+
+if a.error_prefix and a.error_method and a.target_error is not None:
+    df_err = error.load_error(a.error_prefix, a.error_method)
+    rec_n = error.recommend_N(df_err, a.target_error)
+    if a.trotter is None:
+        a.trotter = rec_n
+    print(f"Recommended N from {a.error_prefix}_{a.error_method}: {rec_n}")
 
 """Effective gamma for decoherence"""
 records=[]
