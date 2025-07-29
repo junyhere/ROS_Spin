@@ -24,7 +24,7 @@ def build_rp_circuit(delay_ids: int = 4, trotter: int | None = None) -> QuantumC
 def simulate(qc: QuantumCircuit, noise, shots: int):
     """Run the AerSimulator with ``noise`` and return raw counts."""
     backend = AerSimulator(noise_model=noise)
-    tcirc   = transpile(qc, backend)
+    tcirc   = transpile(qc, backend, optimization_level=0)
     job     = backend.run(tcirc, shots=shots)
     return job.result().get_counts()
 
