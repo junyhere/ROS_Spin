@@ -13,6 +13,7 @@ def main() -> None:
     p.add_argument("--out", default="heatmap.csv")
     args = p.parse_args()
 
+    """Example usage: python3 looped.py --delays 1,2,3,4,5 --tau 0.1 --out heatmap.csv"""
     for d in args.delays.split(","):
         cmd = [
             sys.executable,
