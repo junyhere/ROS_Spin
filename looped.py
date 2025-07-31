@@ -3,18 +3,18 @@ import argparse, subprocess, sys
 
 
 def main() -> None:
-    """Batch script to run ROS.py displaying results from different delays and protocols."""
+    """Batch utility to run ROS.py displaying results from different delays and protocols."""
     p = argparse.ArgumentParser()
     p.add_argument("--delays", default="1,2,3,4,5")
     p.add_argument("--json", default="dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
     p.add_argument("--csv", default="dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
     p.add_argument("--tau", default="0.1")
     p.add_argument("--protocols", default="f_ow,f_fb")
-    p.add_argument("--out", default="heatmap.csv")
+    p.add_argument("--out", default="table.csv")
     args = p.parse_args()
 
-    """Example usage: python3 looped.py --delays 1,2,3,4,5 --tau 0.1 --out heatmap.csv"""
     for d in args.delays.split(","):
+         """Example usage: python3 looped.py --delays 1,2,3,4,5 --tau 0.1 --out table.csv"""
         cmd = [
             sys.executable,
             "ROS.py",
@@ -23,7 +23,7 @@ def main() -> None:
             "--tau", args.tau,
             "--protocols", args.protocols,
             "--delay", d,
-            "--heatmap",
+            "--table",
             "--csv_out", args.out,
         ]
         subprocess.run(cmd, check=True)
