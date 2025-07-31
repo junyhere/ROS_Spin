@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> None:
     
     df = pd.DataFrame(rows)
     
-    if a.heatmap:
+    if a.table:
         out = Path(a.csv_out or "table.csv")
         df.to_csv(out, mode="a", index=False, header=not out.exists())
         if a.plot:
