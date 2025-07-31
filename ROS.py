@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> None:
               Example (OW+FB heat‑map across delays):
                 for d in 1 2 3 4 5; do
               python3 ROS.py --json axis.json --csv vals.csv --tau 0.1 \\
-        --protocols f_ow,f_fb --delay $d --heatmap done"""))
+        --protocols f_ow,f_fb --delay $d --table done"""))
     p.add_argument("--json"); p.add_argument("--csv")            #Sim07 file calls
     p.add_argument("--surface_vals"); p.add_argument("--surface_axis")  #Sim06 file calls
     p.add_argument("--tau_index", type=int); p.add_argument("--T0_index", type=int)
@@ -55,8 +55,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--target_error", type=float,
                    help="Desired accuracy for parse_fig10.recommend_N")
     p.add_argument("--plot", action="store_true")
-    p.add_argument("--heatmap", action="store_true",
-                   help="Accumulate multi‑protocol, multi‑delay results into a heat‑map")
+    p.add_argument("--table", action="store_true",
+                   help="Accumulate multi‑protocol, multi‑delay results into a table")
     p.add_argument("--csv_out")
     a = p.parse_args()
     
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> None:
     df = pd.DataFrame(rows)
     
     if a.heatmap:
-        out = Path(a.csv_out or "heatmap.csv")
+        out = Path(a.csv_out or "table.csv")
         df.to_csv(out, mode="a", index=False, header=not out.exists())
         if a.plot:
             data = pd.read_csv(out)
