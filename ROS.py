@@ -15,7 +15,9 @@ def build_rp_circuit(delay_ids: int = 4, trotter: int | None = None) -> QuantumC
     qc = QuantumCircuit(2, 2)
     qc.x(1); qc.h(0); qc.cx(0,1); qc.z(0); qc.x([0,1])
     if trotter:
-        for _ in range(trotter): qc.cz(0,1)
+        for _ in range(trotter):
+            qc.cz(0,1)
+            qc.id([0,1])
     else:
         for _ in range(delay_ids): qc.id([0,1])
     qc.measure([0,1],[0,1])
