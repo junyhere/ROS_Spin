@@ -27,7 +27,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--gamma", required=True, help="Range or comma list of gamma values")
     p.add_argument("--delay", type=int, default=4, help="Number of idle gates")
     p.add_argument("--trotter", type=int, help="Optional number of CZ steps")
-    p.add_argument("--shots", type=int, default=1000)
+    p.add_argument("--shots", type=int, default=5000)
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--csv_out", type=Path, help="Optional path to save the table as CSV")
     args = p.parse_args(argv)
