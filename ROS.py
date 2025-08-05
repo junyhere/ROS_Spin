@@ -42,10 +42,13 @@ def main(argv: list[str] | None = None) -> None:
               Example (OW+FB heat‑map across delays):
                 for d in 1 2 3 4 5; do
               python3 ROS.py --json axis.json --csv vals.csv --tau 0.1 \\
-        --protocols f_ow,f_fb --delay $d --table done"""))
+        --protocols f_ow,f_fb --delay $d --table done
+              Example (surface data selection):
+              python3 ROS.py --surface_vals surface_vals.csv --surface_axis surface_axis.csv \\
+        --v_index 10 --T0_index 20"""))
     p.add_argument("--json"); p.add_argument("--csv")            #Sim07 file calls
     p.add_argument("--surface_vals"); p.add_argument("--surface_axis")  #Sim06 file calls
-    p.add_argument("--tau_index", type=int); p.add_argument("--T0_index", type=int)
+    p.add_argument("--v_index", type=int); p.add_argument("--T0_index", type=int)
     p.add_argument("--tau", type=float)
     p.add_argument("--protocols", default="f_ow")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"))
@@ -71,21 +74,21 @@ def main(argv: list[str] | None = None) -> None:
     
     """Effective gamma for decoherence"""
     records=[]
-    tau_val = None
+    v_val = None
     T0_val = None
     if a.surface_vals:
         if not a.surface_axis:
             sys.exit("--surface_axis required when using --surface_vals")
         vals = pd.read_csv(a.surface_vals, header=None).values
         axis = pd.read_csv(a.surface_axis)
-        tau_axis = axis.iloc[:,0].to_numpy()
+        v_axis = axis.iloc[:,0].to_numpy()
         T0_axis = axis.iloc[:,1].to_numpy()
         try:
-            tau_val = float(tau_axis[a.tau_index])
+            v_val = float(v_axis[a.v_index])
             T0_val = float(T0_axis[a.T0_index])
         except IndexError as e:
             sys.exit(f"Index out of range: {e}")
-        records.append(("surface", float(vals[a.tau_index, a.T0_index])))
+        records.append(("surface", float(vals[a.v_index, a.T0_index])))
     else:
         if not (a.json and a.csv):
             sys.exit("Need --json/--csv or surface files")
@@ -104,8 +107,8 @@ def main(argv: list[str] | None = None) -> None:
         s,t = counts_to_ros(simulate(qc, noise, a.shots))
         row = {"delay":a.delay,"protocol":proto,
                "gamma":g_eff,"singlet":s,"triplet":t}
-        if tau_val is not None:
-            row["tau"] = tau_val
+        if v_val is not None:
+            row["v"] = v_val
         if T0_val is not None:
             row["T0"] = T0_val
         rows.append(row)
@@ -117,7 +120,9 @@ def main(argv: list[str] | None = None) -> None:
         df.to_csv(out, mode="a", index=False, header=not out.exists())
         if a.plot:
             data = pd.read_csv(out)
-            pivot = data.pivot(index="delay", columns="protocol", values="singlet")
+            pivot = data.pivot_table(
+                index="delay", columns="protocol", values="singlet", aggfunc="mean"
+            )
             plt.imshow(pivot, origin="lower", aspect="auto", cmap="viridis")
             plt.xlabel("protocol")
             plt.ylabel("delay")
