@@ -28,8 +28,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="Range or comma list of dephasing times")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"),
                    help="Directory containing weighting CSV files")
-    p.add_argument("--protocol", default="f_ow",
-                   help="Protocol column name to use from weighting data")
+    p.add_argument("--protocols", default="f_ow,f_fb",
+                   help="Comma-separated protocol column names to use from weighting data")
     p.add_argument("--dt", type=float,
                    help="Time step; defaults to value from dataset/fig03")
     p.add_argument("--csv_out", type=Path,
@@ -46,25 +46,34 @@ def main(argv: list[str] | None = None) -> None:
     else:
         dt = args.dt
 
-    data = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
-    for i, tau in enumerate(tau_vals):
-        for j, B in enumerate(B_vals):
-            g_base = rc.gamma_base(B, dt)
-            beta = g_base * tau
-            weight = rc.weight_factor(beta, args.protocol, args.weights)
-            data[i, j] = g_base * weight
+    grids: dict[str, np.ndarray] = {}
+    protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
+    for protocol in protocols:
+        data = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
+        for i, tau in enumerate(tau_vals):
+            for j, B in enumerate(B_vals):
+                g_base = rc.gamma_base(B, dt)
+                beta = g_base * tau
+                weight = rc.weight_factor(beta, protocol, args.weights)
+                data[i, j] = g_base * weight
+        grids[protocol] = data
 
-    fig, ax = plt.subplots()
-    mesh = ax.pcolormesh(B_vals, tau_vals, data, shading="auto", cmap="viridis")
-    ax.set_xlabel("B_rms")
-    ax.set_ylabel("tau")
-    fig.colorbar(mesh, ax=ax, label="gamma")
+    fig, axes = plt.subplots(1, len(protocols), squeeze=False, figsize=(6 * len(protocols), 4))
+    for ax, (protocol, data) in zip(axes.flat, grids.items()):
+        mesh = ax.pcolormesh(B_vals, tau_vals, data, shading="auto", cmap="viridis")
+        ax.set_xlabel("B_rms")
+        ax.set_ylabel("tau")
+        ax.set_title(protocol)
+        fig.colorbar(mesh, ax=ax, label="gamma")
+    plt.tight_layout()
     plt.show()
 
     if args.csv_out:
-        df = pd.DataFrame(data, index=tau_vals, columns=B_vals)
-        df.index.name = "tau"
-        df.to_csv(args.csv_out)
+        for protocol, data in grids.items():
+            df = pd.DataFrame(data, index=tau_vals, columns=B_vals)
+            df.index.name = "tau"
+            out = args.csv_out.with_name(f"{args.csv_out.stem}_{protocol}{args.csv_out.suffix}")
+            df.to_csv(out)
 
 
 if __name__ == "__main__":
