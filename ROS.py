@@ -23,11 +23,11 @@ def build_rp_circuit(delay_ids: int = 4, trotter: int | None = None) -> QuantumC
     qc.measure([0,1],[0,1])
     return qc
 
-def simulate(qc: QuantumCircuit, noise, shots: int):
+def simulate(qc: QuantumCircuit, noise, shots: int, seed: int | None = None):
     """Run the AerSimulator with ``noise`` and return raw counts."""
-    backend = AerSimulator(noise_model=noise)
-    tcirc   = transpile(qc, backend, optimization_level=0)
-    job     = backend.run(tcirc, shots=shots)
+    backend = AerSimulator(noise_model=noise, seed_simulator=seed)
+    tcirc = transpile(qc, backend, optimization_level=0)
+    job = backend.run(tcirc, shots=shots)
     return job.result().get_counts()
 
 def counts_to_ros(c: dict[str, int]):
@@ -55,6 +55,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
     p.add_argument("--shots", type=int, default=10000)
+    p.add_argument("--seed", type=int,
+                   help="Seed for the AerSimulator to allow reproducible results")
     p.add_argument("--error_prefix")
     p.add_argument("--error_method", choices=["MC", "NI"])
     p.add_argument("--target_error", type=float,
@@ -106,7 +108,7 @@ def main(argv: list[str] | None = None) -> None:
     for proto, g_eff in records:
         qc = build_rp_circuit(delay_ids=a.delay, trotter=a.trotter)
         noise = noise_mod(g_eff, a.phi_frac)
-        s,t = counts_to_ros(simulate(qc, noise, a.shots))
+        s,t = counts_to_ros(simulate(qc, noise, a.shots, a.seed))
         row = {"delay":a.delay,"protocol":proto,
                "gamma":g_eff,"singlet":s,"triplet":t}
         if v_val is not None:
