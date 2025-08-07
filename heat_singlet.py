@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from ROS import build_rp_circuit, simulate, counts_to_ros
 from noise import noise_mod
+import ROS_Util as rc
 import error
 
 
@@ -36,10 +37,16 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--target_error", type=float,
                    help="Desired accuracy for parse_fig10.recommend_N")
     p.add_argument("--csv_out", type=Path, help="Optional path to save the table as CSV")
+    p.add_argument("--figure_out", type=Path,
+                   help="Path to save the generated figure")
     args = p.parse_args(argv)
 
     B_vals = _parse_values(args.B_rms)
     g_vals = _parse_values(args.gamma)
+
+    axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
+    vals = Path("dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
+    dt, _ = rc.load_field(axis, vals)
 
     if args.error_prefix and args.error_method and args.target_error is not None and args.trotter is None:
         try:
@@ -58,7 +65,8 @@ def main(argv: list[str] | None = None) -> None:
 
     for i, g in enumerate(g_vals):
         for j, _B in enumerate(B_vals):
-            noise = noise_mod(g, args.phi_frac)
+            g_eff = rc.gamma_base(_B, dt) * g
+            noise = noise_mod(g_eff, args.phi_frac)
             s, _ = counts_to_ros(simulate(qc, noise, args.shots))
             data[i, j] = s
 
@@ -67,6 +75,8 @@ def main(argv: list[str] | None = None) -> None:
     ax.set_xlabel("B_rms")
     ax.set_ylabel("gamma")
     fig.colorbar(mesh, ax=ax, label="singlet ratio")
+    if args.figure_out:
+        plt.savefig(args.figure_out)
     plt.show()
 
     if args.csv_out:
