@@ -34,7 +34,10 @@ def main(argv: list[str] | None = None) -> None:
                    help="Time step; defaults to value from dataset/fig03")
     p.add_argument("--csv_out", type=Path,
                    help="Optional path to save the gamma table as CSV")
+    p.add_argument("--figure_out", type=Path,
+                   help="Path to save the generated figure")
     args = p.parse_args(argv)
+
 
     B_vals = _parse_values(args.B_rms)
     tau_vals = _parse_values(args.tau)
@@ -66,6 +69,8 @@ def main(argv: list[str] | None = None) -> None:
         ax.set_title(protocol)
         fig.colorbar(mesh, ax=ax, label="gamma")
     plt.tight_layout()
+    if args.figure_out:
+        plt.savefig(args.figure_out)
     plt.show()
 
     if args.csv_out:
