@@ -32,6 +32,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--delay", type=int, default=4, help="Number of idle gates")
     p.add_argument("--trotter", type=int, help="Optional number of CZ steps")
     p.add_argument("--shots", type=int, default=10000)
+    p.add_argument("--seed", type=int,
+                   help="Random seed for deterministic runs")
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--error_prefix")
     p.add_argument("--error_method", choices=["MC", "NI"])
@@ -70,7 +72,7 @@ def main(argv: list[str] | None = None) -> None:
             g_eff = rc.gamma_base(_B, dt) * g_scale
             g_eff_grid[i, j] = g_eff
             noise = noise_mod(g_eff, args.phi_frac)
-            s, _ = counts_to_ros(simulate(qc, noise, args.shots))
+            s, _ = counts_to_ros(simulate(qc, noise, args.shots, seed=args.seed))
             data[i, j] = s
 
     fig, ax = plt.subplots()
