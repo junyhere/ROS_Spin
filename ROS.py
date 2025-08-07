@@ -63,6 +63,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--table", action="store_true",
                    help="Accumulate multi‑protocol, multi‑delay results into a table")
     p.add_argument("--csv_out")
+    p.add_argument("--figure_out", type=Path,
+                   help="Path to save the generated figure")
     a = p.parse_args()
     
     if a.error_prefix and a.error_method and a.target_error is not None:
@@ -127,6 +129,8 @@ def main(argv: list[str] | None = None) -> None:
             plt.xlabel("protocol")
             plt.ylabel("delay")
             plt.colorbar(label="singlet")
+            if a.figure_out:
+                plt.savefig(a.figure_out)
             plt.show()
     else:
         print(df.to_string(index=False, float_format="%.4f"))
