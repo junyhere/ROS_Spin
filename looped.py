@@ -11,6 +11,7 @@ def main() -> None:
     p.add_argument("--tau", default="0.1")
     p.add_argument("--protocols", default="f_ow,f_fb")
     p.add_argument("--out", default="table.csv")
+    p.add_argument("--seed", type=int)
     args = p.parse_args()
 
     for d in args.delays.split(","):
@@ -26,6 +27,8 @@ def main() -> None:
             "--table",
             "--csv_out", args.out,
         ]
+        if args.seed is not None:
+            cmd.extend(["--seed", str(args.seed)])
         subprocess.run(cmd, check=True)
 
 
