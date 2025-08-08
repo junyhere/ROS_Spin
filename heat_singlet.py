@@ -42,6 +42,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--csv_out", type=Path, help="Optional path to save the table as CSV")
     p.add_argument("--figure_out", type=Path,
                    help="Path to save the generated figure")
+    p.add_argument("--show", action="store_true",
+                   help="Display the generated figure")
     args = p.parse_args(argv)
 
     B_vals = np.array(_parse_values(args.B_rms))
@@ -89,7 +91,8 @@ def main(argv: list[str] | None = None) -> None:
     fig.colorbar(mesh, ax=ax, label="singlet ratio")
     if args.figure_out:
         plt.savefig(args.figure_out)
-    plt.show()
+    if args.show:
+        plt.show()
 
     if args.csv_out:
         df = pd.DataFrame(data, index=g_eff_grid[:, 0], columns=B_vals)
@@ -99,3 +102,4 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
