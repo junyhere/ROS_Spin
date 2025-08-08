@@ -44,12 +44,18 @@ def main(argv: list[str] | None = None) -> None:
                    help="Path to save the generated figure")
     args = p.parse_args(argv)
 
-    B_vals = _parse_values(args.B_rms)
-    g_scales = _parse_values(args.gamma_scale)
+    B_vals = np.array(_parse_values(args.B_rms))
+    g_scales = np.array(_parse_values(args.gamma_scale))
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
     vals = Path("dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
     dt, _ = rc.load_field(axis, vals)
+
+    # Precompute gamma_base for each magnetic field value once
+    gamma_base_vals = np.array([rc.gamma_base(b, dt) for b in B_vals])
+
+    # Build the full grid of effective damping rates using an outer product
+    g_eff_grid = np.outer(g_scales, gamma_base_vals)
 
     if args.error_prefix and args.error_method and args.target_error is not None and args.trotter is None:
         try:
@@ -62,21 +68,21 @@ def main(argv: list[str] | None = None) -> None:
         args.trotter = rec_n
         print(f"Recommended N from {args.error_prefix}_{args.error_method}: {rec_n}")
 
-    data = np.zeros((len(g_scales), len(B_vals)), dtype=float)
-    g_eff_grid = np.zeros_like(data)
+    data = np.zeros_like(g_eff_grid, dtype=float)
 
     qc = build_rp_circuit(delay_ids=args.delay, trotter=args.trotter)
 
-    for i, g_scale in enumerate(g_scales):
-        for j, _B in enumerate(B_vals):
-            g_eff = rc.gamma_base(_B, dt) * g_scale
-            g_eff_grid[i, j] = g_eff
-            noise = noise_mod(g_eff, args.phi_frac)
-            s, _ = counts_to_ros(simulate(qc, noise, args.shots, seed=args.seed))
-            data[i, j] = s
+    
+    g_eff_flat = g_eff_grid.ravel()
+    data_flat = np.empty_like(g_eff_flat)
+    for idx, g_eff in enumerate(g_eff_flat):
+        noise = noise_mod(g_eff, args.phi_frac)
+        s, _ = counts_to_ros(simulate(qc, noise, args.shots, seed=args.seed))
+        data_flat[idx] = s
+    data = data_flat.reshape(g_eff_grid.shape)
 
     fig, ax = plt.subplots()
-    B_mesh = np.tile(B_vals, (len(g_scales), 1))
+    B_mesh, _ = np.meshgrid(B_vals, g_scales)
     mesh = ax.pcolormesh(B_mesh, g_eff_grid, data, shading="auto", cmap="viridis")
     ax.set_xlabel("B_rms")
     ax.set_ylabel("gamma_eff")
