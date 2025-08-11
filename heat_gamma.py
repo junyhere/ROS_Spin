@@ -32,6 +32,9 @@ def main(argv: list[str] | None = None) -> None:
                    help="Comma-separated protocol column names to use from weighting data")
     p.add_argument("--dt", type=float,
                    help="Time step; defaults to value from dataset/fig03")
+    p.add_argument("--gamma_k", type=float, default=1.0e4,
+                   help="Scaling coefficient k for rc.gamma_base;"
+                        " gamma = min(0.25, k * B_rms * dt)")
     p.add_argument("--csv_out", type=Path,
                    help="Optional path to save the gamma table as CSV")
     p.add_argument("--figure_out", type=Path,
@@ -57,7 +60,7 @@ def main(argv: list[str] | None = None) -> None:
         data = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
         for i, tau in enumerate(tau_vals):
             for j, B in enumerate(B_vals):
-                g_base = rc.gamma_base(B, dt)
+                g_base = rc.gamma_base(B, dt, args.gamma_k)
                 beta = g_base * tau
                 weight = rc.weight_factor(beta, protocol, args.weights)
                 data[i, j] = g_base * weight
@@ -86,4 +89,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
