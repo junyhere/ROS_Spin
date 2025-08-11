@@ -46,9 +46,12 @@ def main(argv: list[str] | None = None) -> None:
               python3 ROS.py --surface_vals surface_vals.csv --surface_axis surface_axis.csv \\
         --v_index 10 --T0_index 20"""))
     p.add_argument("--json"); p.add_argument("--csv")            #Sim07 file calls
-    p.add_argument("--surface_vals"); p.add_argument("--surface_axis")  #Sim06 file calls
+    p.add_argument("--surface_vals", help="CSV of precomputed surface")
+    p.add_argument("--surface_axis", help="Axis CSV for raw surface grids")
     p.add_argument("--v_index", type=int); p.add_argument("--T0_index", type=int)
     p.add_argument("--tau", type=float)
+    p.add_argument("--beta", type=float,
+                   help="Dimensionless beta overriding tau")
     p.add_argument("--protocols", default="f_ow")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"))
     p.add_argument("--phi_frac", type=float, default=0.0)
@@ -80,26 +83,26 @@ def main(argv: list[str] | None = None) -> None:
     v_val = None
     T0_val = None
     if a.surface_vals:
-        if not a.surface_axis:
-            sys.exit("--surface_axis required when using --surface_vals")
-        vals = pd.read_csv(a.surface_vals, header=None).values
-        axis = pd.read_csv(a.surface_axis)
-        v_axis = axis.iloc[:,0].to_numpy()
-        T0_axis = axis.iloc[:,1].to_numpy()
+        df_surface = pd.read_csv(a.surface_vals)
+        df_surface = df_surface.pivot_table(
+            index="v", columns="T0", values=df_surface.columns[-1], aggfunc="mean"
+        )
+        v_axis = df_surface.index.to_numpy(dtype=float)
+        T0_axis = df_surface.columns.to_numpy(dtype=float)
         try:
-            v_val = float(v_axis[a.v_index])
-            T0_val = float(T0_axis[a.T0_index])
+            v_val = v_axis[a.v_index].item()
+            T0_val = T0_axis[a.T0_index].item()
         except IndexError as e:
             sys.exit(f"Index out of range: {e}")
-        records.append(("surface", float(vals[a.v_index, a.T0_index])))
+        records.append(("surface", float(df_surface.iat[a.v_index, a.T0_index])))
     else:
         if not (a.json and a.csv):
             sys.exit("Need --json/--csv or surface files")
         dt, B = rc.load_field(Path(a.json), Path(a.csv))
         g_base = rc.gamma_base(B, dt, a.gamma_k)
         for proto in a.protocols.split(","):
-            beta = g_base * a.tau if a.tau else 0
-            f = rc.weight_factor(beta, proto, a.weights) if a.tau else 1.0
+            beta = a.beta if a.beta is not None else g_base * a.tau if a.tau else 0
+            f = rc.weight_factor(beta, proto, a.weights) if (a.tau or a.beta is not None) else 1.0
             records.append((proto, g_base * f))
     
     """Simulation using obtained effective gamma"""
@@ -128,6 +131,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
