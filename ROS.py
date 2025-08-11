@@ -53,6 +53,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--protocols", default="f_ow")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"))
     p.add_argument("--phi_frac", type=float, default=0.0)
+    p.add_argument("--gamma_k", type=float, default=1.0e4,
+                   help="Scaling coefficient k for rc.gamma_base;"
+                        " gamma = min(0.25, k * B_rms * dt)")
     p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
     p.add_argument("--shots", type=int, default=10000)
     p.add_argument("--seed", type=int,
@@ -141,3 +144,4 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
