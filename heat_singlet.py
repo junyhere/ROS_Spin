@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> None:
     dt, _ = rc.load_field(axis, vals)
 
     # Precompute gamma_base for each magnetic field value once
-    gamma_base_vals = np.array([rc.gamma_base(b, dt) for b in B_vals])
+    gamma_base_vals = np.array([rc.gamma_base(b, dt, args.gamma_k) for b in B_vals])
 
     # Build the full grid of effective damping rates using an outer product
     g_eff_grid = np.outer(g_scales, gamma_base_vals)
@@ -105,5 +105,6 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
