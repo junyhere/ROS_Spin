@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import warnings
 import numpy as np, pandas as pd
 from scipy.interpolate import interp1d
 
@@ -39,5 +40,16 @@ def weight_factor(beta: float, protocol: str, directory: Path) -> float:
     tbl = _weight_cache[directory]
     if protocol not in tbl.columns:
         raise KeyError(f"{protocol} not found in weighting data")
-    interp = interp1d(tbl["beta"], tbl[protocol], fill_value="extrapolate")
+    betas = tbl["beta"]
+    min_beta = float(betas.iloc[0])
+    max_beta = float(betas.iloc[-1])
+    if beta < min_beta or beta > max_beta:
+        clamped = min(max(beta, min_beta), max_beta)
+        warnings.warn(
+            f"beta={beta} outside weighting data range [{min_beta}, {max_beta}], clamping to {clamped}",
+            RuntimeWarning,
+        )
+        beta = clamped
+
+    interp = interp1d(betas, tbl[protocol])
     return float(interp(beta))
