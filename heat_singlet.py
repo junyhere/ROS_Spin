@@ -36,8 +36,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="Random seed for deterministic runs")
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--gamma_k", type=float, default=1.0e4,
-                   help="Scaling coefficient k for rc.gamma_base;"
-                        " gamma = min(0.25, k * B_rms * dt)")
+                   help=("Scaling coefficient k for rc.gamma_base;"
+                        " gamma = min(0.25, k * B_rms * dt)"))
     p.add_argument("--error_prefix")
     p.add_argument("--error_method", choices=["MC", "NI"])
     p.add_argument("--target_error", type=float,
@@ -105,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
