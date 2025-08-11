@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> None:
         if not (a.json and a.csv):
             sys.exit("Need --json/--csv or surface files")
         dt, B = rc.load_field(Path(a.json), Path(a.csv))
-        g_base = rc.gamma_base(B, dt)
+        g_base = rc.gamma_base(B, dt, a.gamma_k)
         for proto in a.protocols.split(","):
             beta = g_base * a.tau if a.tau else 0
             f = rc.weight_factor(beta, proto, a.weights) if a.tau else 1.0
@@ -144,4 +144,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
