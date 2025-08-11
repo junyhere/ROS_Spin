@@ -36,6 +36,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="Optional path to save the gamma table as CSV")
     p.add_argument("--figure_out", type=Path,
                    help="Path to save the generated figure")
+    p.add_argument("--show", action="store_true",
+                   help="Display the generated figure")
     args = p.parse_args(argv)
 
 
@@ -71,7 +73,8 @@ def main(argv: list[str] | None = None) -> None:
     plt.tight_layout()
     if args.figure_out:
         plt.savefig(args.figure_out)
-    plt.show()
+    if args.show:
+        plt.show()
 
     if args.csv_out:
         for protocol, data in grids.items():
@@ -83,3 +86,4 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
