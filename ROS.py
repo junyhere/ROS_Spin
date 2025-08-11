@@ -1,7 +1,6 @@
 from pathlib import Path
 import argparse, textwrap, sys
 import pandas as pd
-import matplotlib.pyplot as plt
 
 import error
 
@@ -64,12 +63,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--error_method", choices=["MC", "NI"])
     p.add_argument("--target_error", type=float,
                    help="Desired accuracy for parse_fig10.recommend_N")
-    p.add_argument("--plot", action="store_true")
     p.add_argument("--table", action="store_true",
                    help="Accumulate multi‑protocol, multi‑delay results into a table")
     p.add_argument("--csv_out")
-    p.add_argument("--figure_out", type=Path,
-                   help="Path to save the generated figure")
     a = p.parse_args()
     
     if a.error_prefix and a.error_method and a.target_error is not None:
@@ -125,18 +121,6 @@ def main(argv: list[str] | None = None) -> None:
     if a.table:
         out = Path(a.csv_out or "table.csv")
         df.to_csv(out, mode="a", index=False, header=not out.exists())
-        if a.plot:
-            data = pd.read_csv(out)
-            pivot = data.pivot_table(
-                index="delay", columns="protocol", values="singlet", aggfunc="mean"
-            )
-            plt.imshow(pivot, origin="lower", aspect="auto", cmap="viridis")
-            plt.xlabel("protocol")
-            plt.ylabel("delay")
-            plt.colorbar(label="singlet")
-            if a.figure_out:
-                plt.savefig(a.figure_out)
-            plt.show()
     else:
         print(df.to_string(index=False, float_format="%.4f"))
         if a.csv_out:
@@ -144,5 +128,6 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
