@@ -24,8 +24,11 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description="Plot effective gamma over B_rms and tau")
     p.add_argument("--B_rms", required=True,
                    help="Range or comma list of magnetic field RMS values")
+    group = p.add_mutually_exclusive_group(required=True)
     p.add_argument("--tau", required=True,
                    help="Range or comma list of dephasing times")
+    group.add_argument("--beta",
+                       help="Range or comma list of dimensionless beta = gamma_base * tau")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"),
                    help="Directory containing weighting CSV files")
     p.add_argument("--protocols", default="f_ow,f_fb",
@@ -45,7 +48,12 @@ def main(argv: list[str] | None = None) -> None:
 
 
     B_vals = _parse_values(args.B_rms)
-    tau_vals = _parse_values(args.tau)
+    if args.tau:
+        y_vals = _parse_values(args.tau)
+        y_label = "tau"
+    else:
+        y_vals = _parse_values(args.beta)
+        y_label = "beta"
 
     if args.dt is None:
         axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
@@ -57,22 +65,22 @@ def main(argv: list[str] | None = None) -> None:
     grids: dict[str, np.ndarray] = {}
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
     for protocol in protocols:
-        data = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
-        for i, tau in enumerate(tau_vals):
+        data = np.zeros((len(y_vals), len(B_vals)), dtype=float)
+        for i, y in enumerate(y_vals):
             for j, B in enumerate(B_vals):
-                g_base = rc.gamma_base(B, dt, args.gamma_k)
-                beta = g_base * tau
+                g_base = rc.gamma_base(B, dt)
+                beta = g_base * y if args.tau else y
                 weight = rc.weight_factor(beta, protocol, args.weights)
                 data[i, j] = g_base * weight
         grids[protocol] = data
-
+    
     fig, axes = plt.subplots(1, len(protocols), squeeze=False, figsize=(6 * len(protocols), 4))
     for ax, (protocol, data) in zip(axes.flat, grids.items()):
-        mesh = ax.pcolormesh(B_vals, tau_vals, data, shading="auto", cmap="viridis")
+        mesh = ax.pcolormesh(B_vals, y_vals, data, shading="auto", cmap="viridis")
         ax.set_xlabel("B_rms")
-        ax.set_ylabel("tau")
+        ax.set_ylabel(y_label)
         ax.set_title(protocol)
-        fig.colorbar(mesh, ax=ax, label="gamma")
+        fig.colorbar(mesh, ax=ax, label="gamma_eff")
     plt.tight_layout()
     if args.figure_out:
         plt.savefig(args.figure_out)
@@ -81,13 +89,11 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.csv_out:
         for protocol, data in grids.items():
-            df = pd.DataFrame(data, index=tau_vals, columns=B_vals)
-            df.index.name = "tau"
+            df = pd.DataFrame(data, index=y_vals, columns=B_vals)
+            df.index.name = y_label
             out = args.csv_out.with_name(f"{args.csv_out.stem}_{protocol}{args.csv_out.suffix}")
             df.to_csv(out)
 
 
 if __name__ == "__main__":
     main()
-
-
