@@ -25,10 +25,14 @@ def _parse_values(arg: str) -> list[float]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description="Simulate singlet ratio over B_rms and gamma scaling grid")
+    p = argparse.ArgumentParser(description="Simulate singlet ratio over B_rms and tau grid")
     p.add_argument("--B_rms", required=True, help="Range or comma list of B_rms values")
-    p.add_argument("--gamma_scale", required=True,
-                   help="Range or comma list of gamma scaling factors")
+    p.add_argument("--tau", required=True,
+                   help="Range or comma list of dephasing times")
+    p.add_argument("--weights", type=Path, default=Path("dataset/fig06"),
+                   help="Directory containing weighting CSV files")
+    p.add_argument("--protocols", default="f_ow,f_fb",
+                   help="Comma-separated protocol column names to use from weighting data")
     p.add_argument("--delay", type=int, default=4, help="Number of idle gates")
     p.add_argument("--trotter", type=int, help="Optional number of CZ steps")
     p.add_argument("--shots", type=int, default=10000)
@@ -36,8 +40,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="Random seed for deterministic runs")
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--gamma_k", type=float, default=1.0e4,
-                   help=("Scaling coefficient k for rc.gamma_base;"
-                        " gamma = min(0.25, k * B_rms * dt)"))
+                   help="Scaling coefficient k for rc.gamma_base;"
+                        " gamma = min(0.25, k * B_rms * dt)")
     p.add_argument("--error_prefix")
     p.add_argument("--error_method", choices=["MC", "NI"])
     p.add_argument("--target_error", type=float,
@@ -50,7 +54,8 @@ def main(argv: list[str] | None = None) -> None:
     args = p.parse_args(argv)
 
     B_vals = np.array(_parse_values(args.B_rms))
-    g_scales = np.array(_parse_values(args.gamma_scale))
+    tau_vals = np.array(_parse_values(args.tau))
+    protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
     vals = Path("dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
@@ -59,8 +64,7 @@ def main(argv: list[str] | None = None) -> None:
     # Precompute gamma_base for each magnetic field value once
     gamma_base_vals = np.array([rc.gamma_base(b, dt, args.gamma_k) for b in B_vals])
 
-    # Build the full grid of effective damping rates using an outer product
-    g_eff_grid = np.outer(g_scales, gamma_base_vals)
+    grids: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 
     if args.error_prefix and args.error_method and args.target_error is not None and args.trotter is None:
         try:
@@ -73,39 +77,49 @@ def main(argv: list[str] | None = None) -> None:
         args.trotter = rec_n
         print(f"Recommended N from {args.error_prefix}_{args.error_method}: {rec_n}")
 
-    data = np.zeros_like(g_eff_grid, dtype=float)
-
     qc = build_rp_circuit(delay_ids=args.delay, trotter=args.trotter)
 
-    
-    g_eff_flat = g_eff_grid.ravel()
-    data_flat = np.empty_like(g_eff_flat)
-    for idx, g_eff in enumerate(g_eff_flat):
-        noise = noise_mod(g_eff, args.phi_frac)
-        s, _ = counts_to_ros(simulate(qc, noise, args.shots, seed=args.seed))
-        data_flat[idx] = s
-    data = data_flat.reshape(g_eff_grid.shape)
+    for protocol in protocols:
+        g_eff_grid = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
+        for i, tau in enumerate(tau_vals):
+            for j, g_base in enumerate(gamma_base_vals):
+                beta = g_base * tau
+                weight = rc.weight_factor(beta, protocol, args.weights)
+                g_eff_grid[i, j] = g_base * weight
 
-    fig, ax = plt.subplots()
-    B_mesh, _ = np.meshgrid(B_vals, g_scales)
-    mesh = ax.pcolormesh(B_mesh, g_eff_grid, data, shading="auto", cmap="viridis")
-    ax.set_xlabel("B_rms")
-    ax.set_ylabel("gamma_eff")
-    fig.colorbar(mesh, ax=ax, label="singlet ratio")
+        g_eff_flat = g_eff_grid.ravel()
+        data_flat = np.empty_like(g_eff_flat)
+        for idx, g_eff in enumerate(g_eff_flat):
+            noise = noise_mod(g_eff, args.phi_frac)
+            s, _ = counts_to_ros(simulate(qc, noise, args.shots, seed=args.seed))
+            data_flat[idx] = s
+        data = data_flat.reshape(g_eff_grid.shape)
+        grids[protocol] = (g_eff_grid, data)
+
+    fig, axes = plt.subplots(1, len(protocols), squeeze=False, figsize=(6 * len(protocols), 4))
+    for ax, protocol in zip(axes.flat, protocols):
+        g_eff_grid, data = grids[protocol]
+        B_mesh, _ = np.meshgrid(B_vals, tau_vals)
+        mesh = ax.pcolormesh(B_mesh, g_eff_grid, data, shading="auto", cmap="viridis")
+        ax.set_xlabel("B_rms")
+        ax.set_ylabel("gamma_eff")
+        ax.set_title(protocol)
+        fig.colorbar(mesh, ax=ax, label="singlet ratio")
+    plt.tight_layout()
     if args.figure_out:
         plt.savefig(args.figure_out)
     if args.show:
         plt.show()
 
     if args.csv_out:
-        df = pd.DataFrame(data, index=g_eff_grid[:, 0], columns=B_vals)
-        df.index.name = "gamma_eff"
-        df.to_csv(args.csv_out)
-
+        for protocol, (g_eff_grid, data) in grids.items():
+            df = pd.DataFrame({
+                "B_rms": np.tile(B_vals, len(tau_vals)),
+                "gamma_eff": g_eff_grid.ravel(),
+                "singlet_ratio": data.ravel(),
+            })
+            out = args.csv_out.with_name(f"{args.csv_out.stem}_{protocol}{args.csv_out.suffix}")
+            df.to_csv(out, index=False)
 
 if __name__ == "__main__":
     main()
-
-
-
-
