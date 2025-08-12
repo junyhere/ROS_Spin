@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--B_rms", required=True,
                    help="Range or comma list of magnetic field RMS values")
     group = p.add_mutually_exclusive_group(required=True)
-    p.add_argument("--tau", required=True,
+    group.add_argument("--tau",
                    help="Range or comma list of dephasing times")
     group.add_argument("--beta",
                        help="Range or comma list of dimensionless beta = gamma_base * tau")
@@ -97,4 +97,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
