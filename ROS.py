@@ -101,8 +101,8 @@ def main(argv: list[str] | None = None) -> None:
         dt, B = rc.load_field(Path(a.json), Path(a.csv))
         g_base = rc.gamma_base(B, dt, a.gamma_k)
         for proto in a.protocols.split(","):
-            beta = a.beta if a.beta is not None else g_base * a.tau if a.tau else 0
-            f = rc.weight_factor(beta, proto, a.weights) if (a.tau or a.beta is not None) else 1.0
+            beta = a.beta if a.beta is not None else g_base * a.tau if a.tau is not None else 0
+            f = rc.weight_factor(beta, proto, a.weights) if (a.tau is not None or a.beta is not None) else 1.0
             records.append((proto, g_base * f))
     
     """Simulation using obtained effective gamma"""
@@ -131,4 +131,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
