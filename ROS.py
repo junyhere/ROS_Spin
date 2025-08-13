@@ -98,11 +98,20 @@ def main(argv: list[str] | None = None) -> None:
     else:
         if not (a.json and a.csv):
             sys.exit("Need --json/--csv or surface files")
-        dt, B = rc.load_field(Path(a.json), Path(a.csv))
+        axis = Path(a.json)
+        vals = Path(a.csv)
+        if not axis.exists():
+            sys.exit(f"Field axis file not found: {axis}")
+        if not vals.exists():
+            sys.exit(f"Field values file not found: {vals}")
+        dt, B = rc.load_field(axis, vals)
         g_base = rc.gamma_base(B, dt, a.gamma_k)
+        weights_path = a.weights
+        if (a.tau is not None or a.beta is not None) and not weights_path.exists():
+            sys.exit(f"Weighting data directory not found: {weights_path}")
         for proto in a.protocols.split(","):
             beta = a.beta if a.beta is not None else g_base * a.tau if a.tau is not None else 0
-            f = rc.weight_factor(beta, proto, a.weights) if (a.tau is not None or a.beta is not None) else 1.0
+            f = rc.weight_factor(beta, proto, weights_path) if (a.tau is not None or a.beta is not None) else 1.0
             records.append((proto, g_base * f))
     
     """Simulation using obtained effective gamma"""
@@ -131,5 +140,6 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
