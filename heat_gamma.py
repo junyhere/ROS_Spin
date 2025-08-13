@@ -61,9 +61,14 @@ def main(argv: list[str] | None = None) -> None:
     if args.dt is None:
         axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
         vals = Path("dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
+        if not axis.exists():
+            sys.exit(f"Field axis file not found: {axis}")
+        if not vals.exists():
+            sys.exit(f"Field values file not found: {vals}")
         dt, _ = rc.load_field(axis, vals)
     else:
         dt = args.dt
+
 
     grids: dict[str, np.ndarray] = {}
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
@@ -100,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
