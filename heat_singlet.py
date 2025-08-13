@@ -120,6 +120,7 @@ def main(argv: list[str] | None = None) -> None:
             })
             out = args.csv_out.with_name(f"{args.csv_out.stem}_{protocol}{args.csv_out.suffix}")
             df.to_csv(out, index=False)
-
+            
 if __name__ == "__main__":
     main()
+
