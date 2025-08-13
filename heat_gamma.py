@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -46,6 +47,8 @@ def main(argv: list[str] | None = None) -> None:
                    help="Display the generated figure")
     args = p.parse_args(argv)
 
+    if not args.weights.exists():
+        sys.exit(f"Weighting data directory not found: {args.weights}")
 
     B_vals = _parse_values(args.B_rms)
     if args.tau:
@@ -97,5 +100,6 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
