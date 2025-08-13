@@ -53,14 +53,21 @@ def main(argv: list[str] | None = None) -> None:
                    help="Display the generated figure")
     args = p.parse_args(argv)
 
+    if not args.weights.exists():
+        sys.exit(f"Weighting data directory not found: {args.weights}")
+
     B_vals = np.array(_parse_values(args.B_rms))
     tau_vals = np.array(_parse_values(args.tau))
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
     vals = Path("dataset/fig03/Sim07_20240405_stochastic_field_vals_3.csv")
+    if not axis.exists():
+        sys.exit(f"Field axis file not found: {axis}")
+    if not vals.exists():
+        sys.exit(f"Field values file not found: {vals}")
     dt, _ = rc.load_field(axis, vals)
-
+    
     # Precompute gamma_base for each magnetic field value once
     gamma_base_vals = np.array([rc.gamma_base(b, dt, args.gamma_k) for b in B_vals])
 
@@ -123,4 +130,5 @@ def main(argv: list[str] | None = None) -> None:
             
 if __name__ == "__main__":
     main()
+
 
