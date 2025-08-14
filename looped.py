@@ -26,8 +26,6 @@ def main() -> None:
     p.add_argument("--phi_frac", default="0.0")
     p.add_argument("--trotter", default="0")
     p.add_argument("--out", default="table.csv")
-    p.add_argument("--trotter", nargs="?",
-                   help="Optional CZ step count; empty to auto‑recommend")
     args, ros_args = p.parse_known_args()
 
     delays = _parse_values(args.delays)
@@ -58,8 +56,6 @@ def main() -> None:
             "--csv_out",
             args.out,
         ]
-        if args.trotter:
-            cmd.extend(["--trotter", args.trotter])
         subprocess.run(cmd, check=True)
 
 
