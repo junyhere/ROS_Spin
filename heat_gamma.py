@@ -69,7 +69,6 @@ def main(argv: list[str] | None = None) -> None:
     else:
         dt = args.dt
 
-
     grids: dict[str, np.ndarray] = {}
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
     for protocol in protocols:
@@ -77,7 +76,12 @@ def main(argv: list[str] | None = None) -> None:
         for i, y in enumerate(y_vals):
             for j, B in enumerate(B_vals):
                 g_base = rc.gamma_base(B, dt)
-                beta = g_base * y if args.tau else y
+                if args.tau:
+                    tau = y
+                    beta = g_base * tau
+                else:
+                    beta = y
+                    tau = beta / g_base
                 weight = rc.weight_factor(beta, protocol, args.weights)
                 data[i, j] = g_base * weight
         grids[protocol] = data
@@ -106,6 +110,7 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
