@@ -60,8 +60,10 @@ def main(argv: list[str] | None = None) -> None:
     B_vals = np.array(_parse_values(args.B_rms))
     if args.tau:
         y_vals = np.array(_parse_values(args.tau))
+        y_label = "tau"
     else:
         y_vals = np.array(_parse_values(args.beta))
+        y_label = "beeta"
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
@@ -110,10 +112,9 @@ def main(argv: list[str] | None = None) -> None:
     fig, axes = plt.subplots(1, len(protocols), squeeze=False, figsize=(6 * len(protocols), 4))
     for ax, protocol in zip(axes.flat, protocols):
         g_eff_grid, data = grids[protocol]
-        B_mesh, _ = np.meshgrid(B_vals, y_vals)
-        mesh = ax.pcolormesh(B_mesh, g_eff_grid, data, shading="auto", cmap="viridis")
+        mesh = ax.pcolormesh(B_vals, y_vals, data, shading="auto", cmap="viridis")
         ax.set_xlabel("B_rms")
-        ax.set_ylabel("gamma_eff")
+        ax.set_ylabel(y_label)
         ax.set_title(protocol)
         fig.colorbar(mesh, ax=ax, label="singlet ratio")
     plt.tight_layout()
@@ -126,6 +127,7 @@ def main(argv: list[str] | None = None) -> None:
         for protocol, (g_eff_grid, data) in grids.items():
             df = pd.DataFrame({
                 "B_rms": np.tile(B_vals, len(y_vals)),
+                y_label: np.repeat(y_vals, len(B_vals)),
                 "gamma_eff": g_eff_grid.ravel(),
                 "singlet_ratio": data.ravel(),
             })
@@ -134,6 +136,7 @@ def main(argv: list[str] | None = None) -> None:
             
 if __name__ == "__main__":
     main()
+
 
 
 
