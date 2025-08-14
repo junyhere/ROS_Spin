@@ -20,7 +20,7 @@ def _parse_values(text: str) -> list[str]:
 def main() -> None:
     """Batch utility to run ROS.py displaying results from different delays and protocols."""
     p = argparse.ArgumentParser()
-    p.add_argument("--delays", default="1,2,3,4,5")
+    p.add_argument("--delay", default="1,2,3,4,5")
     p.add_argument("--tau", default="0.1")
     p.add_argument("--protocols", default="f_ow,f_fb")
     p.add_argument("--phi_frac", default="0.0")
@@ -28,7 +28,7 @@ def main() -> None:
     p.add_argument("--out", default="table.csv")
     args, ros_args = p.parse_known_args()
 
-    delays = _parse_values(args.delays)
+    delays = _parse_values(args.delay)
     taus = _parse_values(args.tau)
     protos = _parse_values(args.protocols)
     phis = _parse_values(args.phi_frac)
