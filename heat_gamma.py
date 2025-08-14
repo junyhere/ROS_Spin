@@ -88,7 +88,8 @@ def main(argv: list[str] | None = None) -> None:
         ax.set_xlabel("B_rms")
         ax.set_ylabel(y_label)
         ax.set_title(protocol)
-        fig.colorbar(mesh, ax=ax, label="gamma_eff")
+        cbar = fig.colorbar(mesh, ax=ax)
+        cbar.set_label("gamma_eff")
     plt.tight_layout()
     if args.figure_out:
         plt.savefig(args.figure_out)
@@ -105,6 +106,7 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
