@@ -25,10 +25,11 @@ def _parse_values(arg: str) -> list[float]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description="Simulate singlet ratio over B_rms and tau grid")
+    p = argparse.ArgumentParser(description="Simulate singlet ratio over B_rms and tau/beta grid")
     p.add_argument("--B_rms", required=True, help="Range or comma list of B_rms values")
-    p.add_argument("--tau", required=True,
-                   help="Range or comma list of dephasing times")
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--tau", help="Range or comma list of dephasing times")
+    group.add_argument("--beta",help="Range or comma list of dimensionless beta = gamma_base * tau")
     p.add_argument("--weights", type=Path, default=Path("dataset/fig06"),
                    help="Directory containing weighting CSV files")
     p.add_argument("--protocols", default="f_ow,f_fb",
@@ -57,7 +58,10 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(f"Weighting data directory not found: {args.weights}")
 
     B_vals = np.array(_parse_values(args.B_rms))
-    tau_vals = np.array(_parse_values(args.tau))
+    if args.tau:
+        y_vals = np.array(_parse_values(args.tau))
+    else:
+        y_vals = np.array(_parse_values(args.beta))
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
@@ -87,10 +91,10 @@ def main(argv: list[str] | None = None) -> None:
     qc = build_rp_circuit(delay_ids=args.delay, trotter=args.trotter)
 
     for protocol in protocols:
-        g_eff_grid = np.zeros((len(tau_vals), len(B_vals)), dtype=float)
-        for i, tau in enumerate(tau_vals):
+        g_eff_grid = np.zeros((len(y_vals), len(B_vals)), dtype=float)
+        for i, y in enumerate(y_vals):
             for j, g_base in enumerate(gamma_base_vals):
-                beta = g_base * tau
+                beta = g_base * y if args.tau else y
                 weight = rc.weight_factor(beta, protocol, args.weights)
                 g_eff_grid[i, j] = g_base * weight
 
@@ -106,7 +110,7 @@ def main(argv: list[str] | None = None) -> None:
     fig, axes = plt.subplots(1, len(protocols), squeeze=False, figsize=(6 * len(protocols), 4))
     for ax, protocol in zip(axes.flat, protocols):
         g_eff_grid, data = grids[protocol]
-        B_mesh, _ = np.meshgrid(B_vals, tau_vals)
+        B_mesh, _ = np.meshgrid(B_vals, y_vals)
         mesh = ax.pcolormesh(B_mesh, g_eff_grid, data, shading="auto", cmap="viridis")
         ax.set_xlabel("B_rms")
         ax.set_ylabel("gamma_eff")
@@ -121,7 +125,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.csv_out:
         for protocol, (g_eff_grid, data) in grids.items():
             df = pd.DataFrame({
-                "B_rms": np.tile(B_vals, len(tau_vals)),
+                "B_rms": np.tile(B_vals, len(y_vals)),
                 "gamma_eff": g_eff_grid.ravel(),
                 "singlet_ratio": data.ravel(),
             })
@@ -130,5 +134,6 @@ def main(argv: list[str] | None = None) -> None:
             
 if __name__ == "__main__":
     main()
+
 
 
