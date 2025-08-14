@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
         data = np.zeros((len(y_vals), len(B_vals)), dtype=float)
         for i, y in enumerate(y_vals):
             for j, B in enumerate(B_vals):
-                g_base = rc.gamma_base(B, dt)
+                g_base = rc.gamma_base(B, dt, args.gamma_k)
                 if args.tau:
                     tau = y
                     beta = g_base * tau
@@ -102,14 +102,18 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.csv_out:
         for protocol, data in grids.items():
-            df = pd.DataFrame(data, index=y_vals, columns=B_vals)
-            df.index.name = y_label
+            df = pd.DataFrame({
+                "B_rms": np.tile(B_vals, len(y_vals)),
+                y_label: np.repeat(y_vals, len(B_vals)),
+                "gamma_eff": data.ravel(),
+            })
             out = args.csv_out.with_name(f"{args.csv_out.stem}_{protocol}{args.csv_out.suffix}")
-            df.to_csv(out)
+            df.to_csv(out, index=False)
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
