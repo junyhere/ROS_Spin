@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> None:
                         " gamma = min(0.25, k * B_rms * dt)"))
     p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
     p.add_argument("--shots", type=int, default=10000)
-    p.add_argument("--seed", type=int, default=18
+    p.add_argument("--seed", type=int, default=18, 
                    help="Seed for the AerSimulator to allow reproducible results")
     p.add_argument("--error_prefix")
     p.add_argument("--error_method", choices=["MC", "NI"])
@@ -140,6 +140,7 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
