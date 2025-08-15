@@ -28,7 +28,7 @@ def gamma_base(B_rms: float, dt: float, k: float = 1.0e4) -> float:
 
 _weight_cache: dict[Path, pd.DataFrame] = {}
 
-def weight_factor(beta: float, protocol: str, directory: Path) -> float:
+def weight_factor(beta: float, protocol: str, directory: Path, *, out_of_range: str = "error",) -> float:
     """Interpolate protocol-specific weighting factors from fig06 CSV files."""
     if directory not in _weight_cache:
         files = sorted(directory.glob("Sim08*_OU_*.csv"))
@@ -44,12 +44,18 @@ def weight_factor(beta: float, protocol: str, directory: Path) -> float:
     min_beta = float(betas.iloc[0])
     max_beta = float(betas.iloc[-1])
     if beta < min_beta or beta > max_beta:
-        clamped = min(max(beta, min_beta), max_beta)
-        warnings.warn(
-            f"beta={beta} outside weighting data range [{min_beta}, {max_beta}], clamping to {clamped}",
-            RuntimeWarning,
-        )
-        beta = clamped
-
+        if out_of_range == "error":
+            raise ValueError(
+                f"beta={beta} outside weighting data range [{min_beta}, {max_beta}]"
+            )
+        elif out_of_range == "clamp":
+            clamped = min(max(beta, min_beta), max_beta)
+            warnings.warn(
+                f"beta={beta} outside weighting data range [{min_beta}, {max_beta}], clamping to {clamped}",
+                RuntimeWarning,
+            )
+            beta = clamped
+        else:
+            raise ValueError("out_of_range must be 'error' or 'clamp'")
     interp = interp1d(betas, tbl[protocol])
     return float(interp(beta))
