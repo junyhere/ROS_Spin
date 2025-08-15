@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--delay", type=int, default=4, help="Number of idle gates")
     p.add_argument("--trotter", type=int, help="Optional number of CZ steps")
     p.add_argument("--shots", type=int, default=10000)
-    p.add_argument("--seed", type=int,
+    p.add_argument("--seed", type=int, default=18,
                    help="Random seed for deterministic runs")
     p.add_argument("--phi_frac", type=float, default=0.0)
     p.add_argument("--gamma_k", type=float, default=1.0e4,
@@ -136,6 +136,7 @@ def main(argv: list[str] | None = None) -> None:
             
 if __name__ == "__main__":
     main()
+
 
 
 
