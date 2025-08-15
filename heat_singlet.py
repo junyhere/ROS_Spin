@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> None:
         y_label = "tau"
     else:
         y_vals = np.array(_parse_values(args.beta))
-        y_label = "beeta"
+        y_label = "beta"
     protocols = [p.strip() for p in args.protocols.split(",") if p.strip()]
 
     axis = Path("dataset/fig03/Sim07_20240405_stochastic_field_axis_3.json")
@@ -136,6 +136,7 @@ def main(argv: list[str] | None = None) -> None:
             
 if __name__ == "__main__":
     main()
+
 
 
 
