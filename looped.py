@@ -11,7 +11,7 @@ def _parse_values(text: str) -> list[str]:
         start, stop, step = (float(x) for x in text.split(":"))
         vals = []
         v = start
-        # ensure inclusive range accounting for floating point error
+        # Ensure inclusive range accounting for floating point error
         while v <= stop + 1e-12:
             vals.append(str(int(v)) if v.is_integer() else str(v))
             v += step
