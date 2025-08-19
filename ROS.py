@@ -125,11 +125,11 @@ def main(argv: list[str] | None = None) -> None:
             "gamma": g_eff,
             "tau": a.tau,
             "phi_frac": a.phi_frac,
-            "trotter": a.trotter,
+            "trotter": a.trotter if a.trotter is not None else "N/A",
+            "delay": "OVR" if a.trotter is not None else a.delay,
+            "singlet": s,
+            "triplet": t,
         }
-        if a.trotter in (None, 0):
-            row["delay"] = a.delay
-        row.update({"singlet": s, "triplet": t})
         if v_val is not None:
             row["v"] = v_val
         if T0_val is not None:
@@ -162,4 +162,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
