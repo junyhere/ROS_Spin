@@ -2,6 +2,7 @@ import argparse
 import itertools
 import subprocess
 import sys
+import pandas as pd
 
 
 def _parse_values(text: str) -> list[str]:
@@ -16,6 +17,18 @@ def _parse_values(text: str) -> list[str]:
             v += step
         return vals
     return [t for t in text.split(",") if t]
+
+def load_table(path: str) -> pd.DataFrame:
+    """Return DataFrame from ``path`` parsing ``OVR``/``N/A`` placeholders.
+
+    ``delay`` values of ``OVR`` indicate a user-specified delay overridden by
+    Trotter steps and are converted to ``NaN``. ``trotter`` values of ``N/A``
+    denote runs without Trotterization and are likewise converted to ``NaN``.
+    """
+    df = pd.read_csv(path, dtype={"delay": "string", "trotter": "string"})
+    df["delay"] = pd.to_numeric(df["delay"], errors="coerce").astype("Int64")
+    df["trotter"] = pd.to_numeric(df["trotter"], errors="coerce").astype("Int64")
+    return df
 
 def main() -> None:
     """Batch utility to run ROS.py displaying results from different delays and protocols."""
