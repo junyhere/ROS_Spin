@@ -71,6 +71,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--csv_out")
     a = p.parse_args()
     
+    use_surface = a.surface_vals is not None
+
     if a.error_prefix and a.error_method and a.target_error is not None:
         df_err = error.load_error(a.error_prefix, a.error_method)
         rec_n = error.recommend_N(df_err, a.target_error)
@@ -82,7 +84,7 @@ def main(argv: list[str] | None = None) -> None:
     records=[]
     v_val = None
     T0_val = None
-    if a.surface_vals:
+    if use_surface:
         df_surface = pd.read_csv(a.surface_vals)
         df_surface = df_surface.pivot_table(
             index="v", columns="T0", values=df_surface.columns[-1], aggfunc="mean"
@@ -115,7 +117,7 @@ def main(argv: list[str] | None = None) -> None:
             records.append((proto, g_base * f))
     
     """Simulation using obtained effective gamma"""
-    rows=[]
+    rows = []
     for proto, g_eff in records:
         qc = build_rp_circuit(delay_ids=a.delay, trotter=a.trotter)
         noise = noise_mod(g_eff, a.phi_frac)
@@ -130,27 +132,25 @@ def main(argv: list[str] | None = None) -> None:
             "singlet": s,
             "triplet": t,
         }
-        if v_val is not None:
+        if use_surface:
             row["v"] = v_val
-        if T0_val is not None:
             row["T0"] = T0_val
         rows.append(row)
-    
+
     df = pd.DataFrame(rows)
-    df = df.reindex(
-        columns=[
-            "protocol",
-            "gamma",
-            "tau",
-            "phi_frac",
-            "trotter",
-            "delay",
-            "singlet",
-            "triplet",
-            "v",
-            "T0",
-        ]
-    )
+    cols = [
+        "protocol",
+        "gamma",
+        "tau",
+        "phi_frac",
+        "trotter",
+        "delay",
+        "singlet",
+        "triplet",
+    ]
+    if use_surface:
+        cols.extend(["v", "T0"])
+    df = df.reindex(columns=cols)
     
     if a.table:
         out = Path(a.csv_out or "table.csv")
@@ -162,5 +162,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-
-
