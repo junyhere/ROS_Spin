@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> None:
                    help="Directory containing fig09 CSV files")
     p.add_argument("--tau", help="Comma list or start:stop:step of tau values to include")
     p.add_argument("--x-label", default="v", help="Label for velocity axis")
-    p.add_argument("--y-label", default=r"$\chi_{NI}$", help="Label for infidelity axis")
+    p.add_argument("--y-label", default=r"$\chi_{\mathrm{NI}}$", help="Label for infidelity axis")
     p.add_argument("--logx", action="store_true", help="Log-scale the x-axis")
     p.add_argument("--logy", action="store_true", help="Log-scale the y-axis")
     p.add_argument("--legend-loc", default="best", help="Legend location")
