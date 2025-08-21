@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> None:
             if "delta" not in df.columns:
                 raise ValueError(f"{pref} lacks 'delta' column for epsilon/delta")
             y = df["epsilon"] / df["delta"]
-            y_label = r"$\\epsilon/\\delta$"
+            y_label = r"$\epsilon/\delta$"
         else:
             y = df[args.y]
             y_label = args.y
