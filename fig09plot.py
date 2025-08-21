@@ -7,15 +7,30 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def _parse_values(arg: str) -> list[float]:
+def _parse_values(arg: str | None) -> list[float]:
     """Parse comma lists or start:stop:step ranges."""
     if arg is None:
         return []
     if ":" in arg:
-        start, stop, step = map(float, arg.split(":"))
+        parts = arg.split(":")
+        if len(parts) != 3:
+            raise ValueError(
+                f"Expected 'start:stop:step' with three values, got {arg!r}"
+            )
+        try:
+            start, stop, step = map(float, parts)
+        except ValueError as exc:
+            raise ValueError(
+                f"Could not parse start, stop, and step from {arg!r}"
+            ) from exc
         n = int(round((stop - start) / step)) + 1
         return [start + i * step for i in range(n)]
-    return [float(x) for x in arg.split(",")]
+    try:
+        return [float(x) for x in arg.split(",")]
+    except ValueError as exc:
+        raise ValueError(
+            f"Could not parse comma-separated values from {arg!r}"
+        ) from exc
 
 
 def load_fig09(directory: Path, tau_filter: list[float] | None):
@@ -35,8 +50,7 @@ def main(argv: list[str] | None = None) -> None:
                    help="Directory containing fig09 CSV files")
     p.add_argument("--tau", help="Comma list or start:stop:step of tau values to include")
     p.add_argument("--x-label", default="v", help="Label for velocity axis")
-    p.add_argument("--y-label", default=r"$\\chi_{NI}$", help="Label for infidelity axis")
-    p.add_argument("--logx", action="store_true", help="Log-scale the x-axis")
+    p.add_argument("--y-label", default=r"$\chi_{NI}$", help="Label for infidelity axis")       p.add_argument("--logx", action="store_true", help="Log-scale the x-axis")
     p.add_argument("--logy", action="store_true", help="Log-scale the y-axis")
     p.add_argument("--legend-loc", default="best", help="Legend location")
     p.add_argument("--title", help="Figure title")
