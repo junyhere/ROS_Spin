@@ -71,6 +71,12 @@ def main() -> None:
         ]
         subprocess.run(cmd, check=True)
 
+# Accuracy sorting
+    df = load_table(args.out)
+    df["accuracy"] = (df["singlet"] - 0.25).abs()
+    df.sort_values("accuracy", inplace=True)
+    df.drop(columns="accuracy").to_csv(args.out, index=False)
+
 
 if __name__ == "__main__":
     main()
