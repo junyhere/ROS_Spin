@@ -1,55 +1,71 @@
 from __future__ import annotations
 
-from pathlib import Path
 import argparse
+from pathlib import Path
 
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def load_fig09(directory: Path) -> list[tuple[float, pd.DataFrame]]:
-    """Return list of (tau, dataframe) loaded from fig09 CSV files."""
-    files = sorted(directory.glob("realistic_tau=*.csv"))
-    data: list[tuple[float, pd.DataFrame]] = []
-    for file in files:
-        try:
-            tau = float(file.stem.split("=")[1])
-        except (IndexError, ValueError):
+def _parse_values(arg: str) -> list[float]:
+    """Parse comma lists or start:stop:step ranges."""
+    if arg is None:
+        return []
+    if ":" in arg:
+        start, stop, step = map(float, arg.split(":"))
+        n = int(round((stop - start) / step)) + 1
+        return [start + i * step for i in range(n)]
+    return [float(x) for x in arg.split(",")]
+
+
+def load_fig09(directory: Path, tau_filter: list[float] | None):
+    for file in sorted(directory.glob("realistic_tau=*.csv")):
+        tau = float(file.stem.split("=")[1])
+        if tau_filter and tau not in tau_filter:
             continue
         df = pd.read_csv(file)
-        if "v" not in df.columns or "chi_ni" not in df.columns:
-            raise ValueError(f"{file} missing required columns 'v' and 'chi_ni'")
-        data.append((tau, df[["v", "chi_ni"]]))
-    data.sort(key=lambda x: x[0])
-    return data
+        yield tau, df
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot v vs chi_ni for fig09 datasets")
-    parser.add_argument(
-        "-d",
-        "--directory",
-        type=Path,
-        default=Path("dataset/fig09"),
-        help="Directory containing fig09 CSV files",
+def main(argv: list[str] | None = None) -> None:
+    p = argparse.ArgumentParser(
+        description="Plot velocity vs numerical infidelity for fig09 datasets"
     )
-    parser.add_argument(
-        "-s", "--save", type=Path, help="Path to save image instead of showing"
-    )
-    args = parser.parse_args()
+    p.add_argument("--directory", type=Path, default=Path("dataset/fig09"),
+                   help="Directory containing fig09 CSV files")
+    p.add_argument("--tau", help="Comma list or start:stop:step of tau values to include")
+    p.add_argument("--x-label", default="v", help="Label for velocity axis")
+    p.add_argument("--y-label", default=r"$\\chi_{NI}$", help="Label for infidelity axis")
+    p.add_argument("--logx", action="store_true", help="Log-scale the x-axis")
+    p.add_argument("--logy", action="store_true", help="Log-scale the y-axis")
+    p.add_argument("--legend-loc", default="best", help="Legend location")
+    p.add_argument("--title", help="Figure title")
+    p.add_argument("--save", type=Path, help="Path to save the image")
+    p.add_argument("--dpi", type=int, default=300, help="Resolution when saving")
+    p.add_argument("--show", action="store_true", help="Display the figure")
+    args = p.parse_args(argv)
 
+    tau_filter = _parse_values(args.tau)
     fig, ax = plt.subplots()
-    for tau, df in load_fig09(args.directory):
-        ax.plot(df["v"], df["chi_ni"], label=f"tau={tau}")
-    ax.set_xlabel("v")
-    ax.set_ylabel(r"$\chi_{NI}$")
-    ax.legend()
-    ax.grid(True, which="both")
+
+    for tau, df in load_fig09(args.directory, tau_filter or None):
+        ax.plot(df["v"], df["chi_ni"], marker="o", label=f"tau={tau}")
+
+    ax.set_xlabel(args.x_label)
+    ax.set_ylabel(args.y_label)
+    if args.title:
+        ax.set_title(args.title)
+    if args.logx:
+        ax.set_xscale("log")
+    if args.logy:
+        ax.set_yscale("log")
+    ax.grid(True, which="both", ls=":")
+    ax.legend(loc=args.legend_loc)
     fig.tight_layout()
 
     if args.save:
-        fig.savefig(args.save)
-    else:
+        fig.savefig(args.save, dpi=args.dpi)
+    if args.show or not args.save:
         plt.show()
 
 
