@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Sensitivity-analysis inputs; not a quantitatively predictive parameterization",
+  "species": {"radical": "doxorubicin semiquinone", "radical_spin": 0.5, "oxygen": "ground-state triplet O2", "oxygen_spin": 1.0},
+  "active_model": {
+    "profile": "illustrative_only",
+    "duration_s": 1e-6,
+    "encounter": {
+      "field_t": [0.0, 0.0, 0.00005],
+      "g_radical": 2.0033,
+      "g_oxygen": 2.0023,
+      "exchange_rad_s": 0.0,
+      "dipolar_rad_s": 0.0,
+      "dipolar_axis": [0.0, 0.0, 1.0],
+      "oxygen_zfs_d_rad_s": 0.0,
+      "oxygen_zfs_e_rad_s": 0.0,
+      "effective_hyperfine_rad_s": [0.0, 0.0, 0.0],
+      "radical_relaxation_s": 0.0,
+      "oxygen_relaxation_s": 0.0,
+      "k_doublet_s": 1000000.0,
+      "k_quartet_s": 10000.0,
+      "k_escape_s": 10000000.0
+    },
+    "downstream": {
+      "superoxide0_m": null,
+      "duration_s": 0.01,
+      "k_spont_m_inv_s": 200000.0,
+      "k_sod_m_inv_s": 2000000000.0,
+      "sod_m": 0.0,
+      "k_h2o2_loss_s": 0.0,
+      "samples": 201
+    }
+  },
+  "measured_parameters": {
+    "doxorubicin_semiquinone_g_isotropic": {"value": 2.0033, "unit": "dimensionless", "environment": "water", "source_doi": "10.1016/0891-5849(90)90027-G"},
+    "doxorubicin_semiquinone_plus_oxygen": {"value": 4.4e7, "unit": "M^-1 s^-1", "environment": "aqueous pulse radiolysis", "source_doi": "10.1016/0003-9861(81)90263-0", "code_note": "bulk bimolecular value; do not substitute for k_doublet_s"},
+    "superoxide_spontaneous_effective_ph74": {"value": 2e5, "unit": "M^-1 s^-1", "status": "recommended aqueous reference value", "source_doi": "10.1063/1.555739"},
+    "cuzn_sod_superoxide": {"value": 2e9, "unit": "M^-1 s^-1", "environment": "bovine erythrocyte enzyme, pH 7.8-8.5", "source_doi": "10.1016/0003-9861(73)90636-X"}
+  },
+  "unavailable_exact_system_parameters": ["doxorubicin semiquinone hyperfine tensor", "encounter k_doublet_s", "k_quartet_s/k_doublet_s", "encounter escape rate", "T1", "T2", "exchange coupling", "dipolar coupling and geometry", "solution encounter O2 g and ZFS tensors", "H2O2 loss rate"],
+  "sensitivity_grid": {
+    "k_doublet_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0],
+    "k_quartet_over_k_doublet": [0.0, 0.01, 0.1, 1.0],
+    "k_escape_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0],
+    "relaxation_s": [0.0, 1000000.0, 100000000.0, 10000000000.0],
+    "label": "purely illustrative log grids, not chemically measured ranges"
+  }
+}

@@ -1,4 +1,31 @@
-# ROS Project Overview
+# ROS_Spin: doxorubicin semiquinone–oxygen spin chemistry
+
+The active model represents doxorubicin semiquinone (spin 1/2) interacting
+with ground-state triplet oxygen (spin 1). It uses a six-state density matrix,
+doublet/quartet projectors, coherent evolution, relaxation, spin-selective
+electron transfer, encounter escape, and separate superoxide-to-H2O2 kinetics.
+
+The parameter review is in
+[`references/doxorubicin_parameter_review.md`](references/doxorubicin_parameter_review.md).
+The default configuration is explicitly illustrative because several
+exact-system parameters are unavailable; it must not be treated as a
+quantitative biological prediction.
+
+Run the three initial-state benchmarks with:
+
+```bash
+python ROS.py --scenario unpolarized --validate-circuit
+python ROS.py --scenario doublet
+python ROS.py --scenario quartet
+python -m unittest discover -s tests -v
+```
+
+## Legacy data
+
+The processed semiconductor spin-shuttling data below are retained for Git
+history and reproducibility but are not used by the chemical spin model.
+
+# Original project overview
 
 This repository uses processed datasets for simulations regarding quantum entanglement generation in open quantum systems. The raw data originate from the Mokeev dataset "Spin-based remote entanglement generation in open quantum systems" (DOI: 10.4121/d0d1007f-c27d-491d-b7e1-cc60e38047b4). Only relevant subsets/folders that can be viewed in their DATASET.zip folder are included here.
 

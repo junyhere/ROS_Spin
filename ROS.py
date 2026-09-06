@@ -1,164 +1,21 @@
-from pathlib import Path
-import argparse, textwrap, sys
-import pandas as pd
+"""CLI for the doxorubicin semiquinone–triplet-oxygen spin model."""
+import argparse
+import json
+from spin_chemistry import coherent_circuit_validation,downstream_ros,parameters_from_json,propagate_encounter
 
-import error
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config",default="configs/doxorubicin_parameters.json")
+    parser.add_argument("--scenario",choices=("unpolarized","doublet","quartet"),default="unpolarized")
+    parser.add_argument("--duration",type=float,help="Encounter time in seconds; overrides config")
+    parser.add_argument("--validate-circuit",action="store_true")
+    args=parser.parse_args(); params,active=parameters_from_json(args.config); duration=args.duration or active["duration_s"]
+    result=propagate_encounter(params,duration,args.scenario); output={k:v for k,v in result.items() if not hasattr(v,"shape")}
+    if args.validate_circuit: output["coherent_circuit_max_abs_error"]=coherent_circuit_validation(params,duration)
+    downstream=active.get("downstream")
+    if downstream and downstream.get("superoxide0_m") is not None:
+        kinetics=downstream_ros(**downstream)
+        output["downstream_final_superoxide_m"]=float(kinetics["superoxide_m"][-1]); output["downstream_final_hydrogen_peroxide_m"]=float(kinetics["hydrogen_peroxide_m"][-1])
+    print(json.dumps(output,indent=2))
 
-from qiskit import QuantumCircuit, transpile
-from qiskit_aer import AerSimulator
-from noise import noise_mod
-import ROS_Util as rc
-
-def build_rp_circuit(delay_ids: int = 4, trotter: int | None = None) -> QuantumCircuit:
-    """Create the two-qubit circuit used in the simulation."""
-    qc = QuantumCircuit(2, 2)
-    qc.x(1); qc.h(0); qc.cx(0,1); qc.z(0); qc.x([0,1])
-    if trotter:
-        for _ in range(trotter):
-            qc.cz(0,1)
-            qc.id([0,1])
-    else:
-        for _ in range(delay_ids): qc.id([0,1])
-    qc.measure([0,1],[0,1])
-    return qc
-
-def simulate(qc: QuantumCircuit, noise, shots: int, seed: int | None = None):
-    """Run the AerSimulator with ``noise`` and return raw counts."""
-    backend = AerSimulator(noise_model=noise, seed_simulator=seed)
-    tcirc = transpile(qc, backend, optimization_level=0)
-    job = backend.run(tcirc, shots=shots)
-    return job.result().get_counts()
-
-def counts_to_ros(c: dict[str, int]):
-    """Convert singlet/triplet counts into ROS fractions."""
-    tot = sum(c.values())
-    trip = c.get("00", 0) + c.get("11", 0)
-    return (tot - trip) / tot, trip / tot
-
-def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent("""
-              Example (OW+FB heat‑map across delays):
-                for d in 1 2 3 4 5; do
-              python3 ROS.py --json axis.json --csv vals.csv --tau 0.1 \\
-        --protocols f_ow,f_fb --delay $d --table done
-              Example (surface data selection):
-              python3 ROS.py --surface_vals surface_vals.csv --surface_axis surface_axis.csv \\
-        --v_index 10 --T0_index 20"""))
-    p.add_argument("--json"); p.add_argument("--csv")            #Sim07 file calls
-    p.add_argument("--surface_vals", help="CSV of precomputed surface")
-    p.add_argument("--surface_axis", help="Axis CSV for raw surface grids")
-    p.add_argument("--v_index", type=int); p.add_argument("--T0_index", type=int)
-    p.add_argument("--tau", type=float)
-    p.add_argument("--beta", type=float,
-                   help="Dimensionless beta overriding tau")
-    p.add_argument("--protocols", default="f_ow")
-    p.add_argument("--weights", type=Path, default=Path("dataset/fig06"))
-    p.add_argument("--phi_frac", type=float, default=0.0)
-    p.add_argument("--gamma_k", type=float, default=1.0e4,
-                   help=("Scaling coefficient k for rc.gamma_base;"
-                        " gamma = min(0.25, k * B_rms * dt)"))
-    p.add_argument("--delay", type=int, default=4); p.add_argument("--trotter", type=int)
-    p.add_argument("--shots", type=int, default=10000)
-    p.add_argument("--seed", type=int, default=18, 
-                   help="Seed for the AerSimulator to allow reproducible results")
-    p.add_argument("--error_prefix")
-    p.add_argument("--error_method", choices=["MC", "NI"])
-    p.add_argument("--target_error", type=float,
-                   help="Desired accuracy for parse_fig10.recommend_N")
-    p.add_argument("--table", action="store_true",
-                   help="Accumulate multi‑protocol, multi‑delay results into a table")
-    p.add_argument("--csv_out")
-    a = p.parse_args()
-    
-    use_surface = a.surface_vals is not None
-
-    if a.error_prefix and a.error_method and a.target_error is not None:
-        df_err = error.load_error(a.error_prefix, a.error_method)
-        rec_n = error.recommend_N(df_err, a.target_error)
-        if a.trotter is None:
-            a.trotter = rec_n
-        print(f"Recommended N from {a.error_prefix}_{a.error_method}: {rec_n}")
-    
-    """Effective gamma for decoherence"""
-    records=[]
-    v_val = None
-    T0_val = None
-    if use_surface:
-        df_surface = pd.read_csv(a.surface_vals)
-        df_surface = df_surface.pivot_table(
-            index="v", columns="T0", values=df_surface.columns[-1], aggfunc="mean"
-        )
-        v_axis = df_surface.index.to_numpy(dtype=float)
-        T0_axis = df_surface.columns.to_numpy(dtype=float)
-        try:
-            v_val = v_axis[a.v_index].item()
-            T0_val = T0_axis[a.T0_index].item()
-        except IndexError as e:
-            sys.exit(f"Index out of range: {e}")
-        records.append(("surface", float(df_surface.iat[a.v_index, a.T0_index])))
-    else:
-        if not (a.json and a.csv):
-            sys.exit("Need --json/--csv or surface files")
-        axis = Path(a.json)
-        vals = Path(a.csv)
-        if not axis.exists():
-            sys.exit(f"Field axis file not found: {axis}")
-        if not vals.exists():
-            sys.exit(f"Field values file not found: {vals}")
-        dt, B = rc.load_field(axis, vals)
-        g_base = rc.gamma_base(B, dt, a.gamma_k)
-        weights_path = a.weights
-        if (a.tau is not None or a.beta is not None) and not weights_path.exists():
-            sys.exit(f"Weighting data directory not found: {weights_path}")
-        for proto in a.protocols.split(","):
-            beta = a.beta if a.beta is not None else g_base * a.tau if a.tau is not None else 0
-            f = rc.weight_factor(beta, proto, weights_path) if (a.tau is not None or a.beta is not None) else 1.0
-            records.append((proto, g_base * f))
-    
-    """Simulation using obtained effective gamma"""
-    rows = []
-    for proto, g_eff in records:
-        qc = build_rp_circuit(delay_ids=a.delay, trotter=a.trotter)
-        noise = noise_mod(g_eff, a.phi_frac)
-        s, t = counts_to_ros(simulate(qc, noise, a.shots, a.seed))
-        row = {
-            "protocol": proto,
-            "gamma": g_eff,
-            "tau": a.tau,
-            "phi_frac": a.phi_frac,
-            "trotter": a.trotter if a.trotter is not None else "N/A",
-            "delay": "OVR" if a.trotter is not None else a.delay,
-            "singlet": s,
-            "triplet": t,
-        }
-        if use_surface:
-            row["v"] = v_val
-            row["T0"] = T0_val
-        rows.append(row)
-
-    df = pd.DataFrame(rows)
-    cols = [
-        "protocol",
-        "gamma",
-        "tau",
-        "phi_frac",
-        "trotter",
-        "delay",
-        "singlet",
-        "triplet",
-    ]
-    if use_surface:
-        cols.extend(["v", "T0"])
-    df = df.reindex(columns=cols)
-    
-    if a.table:
-        out = Path(a.csv_out or "table.csv")
-        df.to_csv(out, mode="a", index=False, header=not out.exists())
-    else:
-        print(df.to_string(index=False, float_format="%.4f"))
-        if a.csv_out:
-            df.to_csv(a.csv_out, index=False)
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()
