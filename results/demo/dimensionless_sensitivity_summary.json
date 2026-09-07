@@ -1,0 +1,144 @@
+{
+  "output_label": "NON-PREDICTIVE DIMENSIONLESS SENSITIVITY OUTPUT",
+  "scenario": "one-factor-at-a-time dimensionless encounter sweep",
+  "normalization": {
+    "reference_rate_s^-1": 1000000.0,
+    "convention": "kD=k_ref; mixing angular frequency, both local relaxation rates, and escape are divided by k_ref; kQ/kD is dimensionless; duration=8/k_ref"
+  },
+  "resolved_inputs": {
+    "coordinates": [
+      {
+        "scenario": "baseline",
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1
+      },
+      {
+        "mixing_over_reference": 0.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_mixing_over_reference:0"
+      },
+      {
+        "mixing_over_reference": 0.1,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_mixing_over_reference:0.1"
+      },
+      {
+        "mixing_over_reference": 10.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_mixing_over_reference:10"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.0,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_relaxation_over_reference:0"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 1.0,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_relaxation_over_reference:1"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 100.0,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_relaxation_over_reference:100"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 0.1,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_escape_over_reference:0.1"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 10.0,
+        "kq_over_kd": 0.1,
+        "scenario": "vary_escape_over_reference:10"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.0,
+        "scenario": "vary_kq_over_kd:0"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 1.0,
+        "scenario": "vary_kq_over_kd:1"
+      },
+      {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 10.0,
+        "scenario": "vary_kq_over_kd:10"
+      }
+    ],
+    "initial_states": [
+      "unpolarized",
+      "doublet",
+      "quartet",
+      "mixture(0.25)",
+      "mixture(0.75)"
+    ],
+    "zero_mixing_control": true,
+    "fast_relaxation_control": "relaxation/reference=100",
+    "spin_independent_null": "kQ/kD=1"
+  },
+  "units": {
+    "rates_and_frequencies": "normalized by positive k_ref",
+    "duration": "s",
+    "outputs": "dimensionless populations and per-encounter yields"
+  },
+  "numerical_settings": {
+    "solver": "six-state constant-generator matrix exponential Pade(13)",
+    "samples": 81,
+    "row_count": 60
+  },
+  "limitations": "Illustrative one-factor-at-a-time grid; bounds are not measured ranges or probability priors. Results are populations and per-encounter yields, not concentrations or biological fluxes. No encounter yield is converted to molarity, and no continuous biological ROS source is modeled.",
+  "metadata": {
+    "commit": "7936863e55e828b2fd062dc44ef90901217b5c3a",
+    "dirty_tree": true,
+    "dirty_entries": [
+      " M .DS_Store",
+      " M README.md",
+      " M ROS.py",
+      " M configs/doxorubicin_parameters.json",
+      " M configs/parameter_provenance.csv",
+      " M references/doxorubicin_parameter_review.md",
+      " M spin_chemistry.py",
+      " M tests/test_spin_chemistry.py",
+      "?? dataset/.DS_Store",
+      "?? results/",
+      "?? sensitivity_analysis.py",
+      "?? tests/.DS_Store"
+    ],
+    "source_fingerprint_sha256": "b86a1e8e72b81791668ab1b492fde86b72174498d78f47f00443827ff3cb8d2b",
+    "config_identity": "configs/doxorubicin_parameters.json",
+    "config_sha256": "b14b641f69afb70af9ff7557a062c2ce00e0b0cb74381ba69fcfaad4f17f04af",
+    "provenance_identity": "configs/parameter_provenance.csv",
+    "provenance_sha256": "86c4261fcb9616a643db79340fe0b7398ba10a5c46464e67e8b697bcfc3a4ec9"
+  },
+  "files": [
+    "dimensionless_sensitivity.csv",
+    "dimensionless_sensitivity.svg"
+  ]
+}

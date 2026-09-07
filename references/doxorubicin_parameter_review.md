@@ -23,7 +23,7 @@ The complete row-level ledger is `configs/parameter_provenance.csv`. Charge desc
 | gSQ, isotropic g | 2.0035 | Doxorubicin semiquinone, protonation not assigned; N2-purged 100 mM phosphate; T not reported; pH 7.5 | CW EPR; not reported; measured | [Kalyanaraman et al. 1991](https://doi.org/10.1016/0003-9861(91)90023-C) | Initialization/sensitivity only; no tensor. `active_model.encounter.g_radical`. |
 | ΔHpp,SQ, one-line width | 3.25 G | Same; 100 μM drug, 400 μM xanthine, 0.2 U XO in 2 mL; T not reported; pH 7.5 | CW EPR, 1 G modulation, 40 G scan, 1 mW; uncertainty not reported; measured | same | Spectral validation only. Unresolved hyperfine plus other broadening prevents unique T2. Evidence metadata, not relaxation. |
 | ΔHpp,SQ, independent width | 3.2 G | Doxorubicin semiquinone; hypoxic 50 mM Tris, 1 mM drug, 400 μM hypoxanthine, 0.1 U/mL XO; 310 K; pH 7.4 | CW EPR; uncertainty not reported; measured | [Hasinoff et al. 2015](https://doi.org/10.1124/mol.115.098798) | Spectral validation only; same T2 caveat. Evidence metadata. |
-| ASQ, hyperfine | Numeric values unavailable in accessible source | Adriamycin and daunomycin semiquinones; solvent, T, pH and charge not reported in accessible abstract | EPR, ENDOR, TRIPLE resonance, partial deuteration; uncertainty not reported; measured study identified | [Jülich et al. 1988](https://doi.org/10.1002/mrc.1260260812) | Assignments were investigated, but numerical extraction is unavailable. Keep `effective_hyperfine_rad_s` disabled. |
+| ASQ, hyperfine | Numeric values unavailable in accessible source | Adriamycin and daunomycin semiquinones; solvent, T, pH and charge not reported in accessible abstract | EPR, ENDOR, TRIPLE resonance, partial deuteration; uncertainty not reported; measured study identified | [Jülich et al. 1988](https://doi.org/10.1002/mrc.1260260812) | Assignments were investigated, but numerical extraction is unavailable. The implemented `local_field_proxy_rad_s` is illustrative and is not explicit nuclear hyperfine dynamics. |
 | kO2,total | (3.5 ± 0.4)×10^8 and (1.7 ± 0.2)×10^8 M^-1 s^-1 | Adriamycin semiquinone + neutral O2; aqueous phosphate/formate or borate/OH-; room T; pH 6.0 and 11.5 | Electron pulse radiolysis/transient absorption; measured total-channel rates | [Land et al. 1985](https://doi.org/10.1038/bjc.1985.74) | Quantitative only for matched bulk solution; no spin resolution or encounter conversion. `measured_parameters`, validation only. |
 | kO2,total, earlier study | 4.4×10^7 M^-1 s^-1 | Adriamycin semiquinone + O2; aqueous buffer; exact buffer, T and pH not reported in accessible source | Pulse radiolysis; uncertainty not reported; measured | [Svingen & Powis 1981](https://doi.org/10.1016/0003-9861(81)90263-0) | Differs 4–8× from conditioned 1985 values; conditions prevent reconciliation. Never kD/kQ. |
 | t1/2,chemical; travel | 50 μs; <0.6 μm anaerobic; calculated 8 μs and <0.1 μm in air-saturated buffer | Same; aqueous; T/pH not reported in accessible source | Pulse radiolysis; uncertainty not reported; lifetime measured, air values/distance author-calculated | same | Chemical loss/travel, not spin T1/T2, pair separation, encounter radius, or cage lifetime. Context only. |
@@ -60,14 +60,14 @@ For semiquinone spin **s** = 1/2 and O2 spin **S** = 1, in angular-frequency uni
 
 The electronic space is 2×3 = 6 states, with `PD = (0.5 I - s·S)/1.5` and `PQ = (s·S + I)/1.5`. The defensible active baseline is the six-state space, exact projectors, a declared field, and measured/explicitly chosen Zeeman information. Spin-selective loss `K = kD PD + kQ PQ` and escape `kesc I` are model structure, but their numerical values are unavailable. J, Ddip, DO2, explicit Ak, and relaxation must remain disabled unless parameterized.
 
-Isotropic `J s·S` and a common isotropic Zeeman term commute with total spin and do not mix D/Q. Unequal local Zeeman terms, nuclear hyperfine terms, O2 anisotropy/ZFS, and anisotropic electron–electron coupling can mix them. Their encounter magnitudes are unavailable, so no mixing frequency or field-effect magnitude is defensible. Also, `ρ = I6/6` is invariant under unitary evolution; oscillations from it require state-selective loss, relaxation, preparation, or another nonunitary process.
+Isotropic `J s·S` and a common isotropic Zeeman term commute with total spin and do not mix D/Q. Unequal local Zeeman terms, explicit nuclear hyperfine terms, O2 anisotropy/ZFS, and anisotropic electron–electron coupling can mix them. Their encounter magnitudes are unavailable, so no mixing frequency or field-effect magnitude is defensible. The implemented local-field proxy is not explicit nuclear hyperfine dynamics, and the local isotropic depolarization is an illustrative relaxation model. Also, `ρ = I6/6` is invariant under unitary evolution. In the full reactive model, unequal D/Q loss can move the surviving ensemble away from `I6/6`; Hamiltonian mixing can then affect later yields. Thus an initially unpolarized encounter is not automatically mixing-insensitive once selective reaction/escape dynamics are included.
 
 ## Initial-state scenarios
 
 1. **Unpolarized, uncorrelated benchmark:** `ρ0 = I6/6`; pD = 1/3 and pQ = 2/3 from degeneracy only, not experiment.
-2. **Pure-doublet benchmark:** `ρ0 = PD/2`.
-3. **Pure-quartet benchmark:** `ρ0 = PQ/4`.
-4. **Bounded mixture:** 0 ≤ pD ≤ 1, sensitivity only.
+2. **Doublet-manifold restricted mixture:** `ρ0 = PD/2`; not a pure wavefunction.
+3. **Quartet-manifold restricted mixture:** `ρ0 = PQ/4`; not a pure wavefunction.
+4. **Bounded manifold mixture:** `ρ0 = pD PD/2 + (1-pD) PQ/4`, with 0 ≤ pD ≤ 1; sensitivity only.
 5. **Chemically prepared coherent state:** unavailable.
 
 ## kQ/kD conclusion
@@ -150,4 +150,41 @@ At 135 μM, quinone-disabled 5-iminodaunorubicin gave 0.45 ± 0.15 nmol min^-1 m
 - Evidence and sensitivity inputs: `configs/doxorubicin_parameters.json`
 - Evidence gate and full six-state reference implementation: `spin_chemistry.py`
 - Dual-mode command-line interface: `ROS.py`
+- Dimensionless one-factor sensitivity entry point: `sensitivity_analysis.py`
+- Verified demonstration CSV/figure/manifest: `results/demo/`
 - Scientific and policy validation: `tests/test_spin_chemistry.py`
+
+## Requirements traceability matrix
+
+“Complete” below means the evidence review or bounded software framework is
+complete; it does not mean predictive parameterization. An unavailable result
+can complete a documented evidence-review requirement while leaving the
+scientific parameterization unavailable.
+
+| Original topic | File / exact object | Test or evidence | Status | Limitation |
+|---|---|---|---|---|
+| g | `configs/doxorubicin_parameters.json`: `active_model.encounter.g_radical`; provenance `g_SQ` | `AuthorityAndModeTests`; Kalyanaraman 1991 | Complete evidence record | Isotropic SQ value only; no O2/encounter tensor. |
+| Hyperfine | `reference_evidence.hyperfine.exact_study`; `local_field_proxy_rad_s` | Provenance `A_SQ`; Hamiltonian mixing tests | Review complete; parameterization unavailable | Numeric exact-system constants inaccessible; proxy is not nuclear hyperfine dynamics. |
+| O2 parameters | `reference_evidence.oxygen`; disabled encounter ZFS/g | Authority validation; gas/matrix/solution/protein sources above | Context review complete; encounter blocked | Environment-specific data are not transferable. |
+| Spin selection | `spin_chemistry.py`: `P_DOUBLET`, `P_QUARTET`, loss operator | Projector, analytic-limit, accounting tests | Complete framework | No measured state-resolved channel assignment. |
+| ET rates | `parameter_records.*semiquinone_plus_oxygen*`; disabled `k_doublet_s`, `k_quartet_s` | Reaction-identity, bulk-policy, unit-separation tests | Bulk complete; encounter unavailable | Bulk total rates cannot be decomposed into first-order D/Q rates. |
+| Encounter lifetime / escape | disabled `active_model.encounter.k_escape_s`; `reference_evidence.encounter` | Evidence-mode refusal and analytic escape tests | Framework complete; physical input unavailable | Chemical lifetime/diffusion is not cage residence time. |
+| Relaxation | disabled radical/oxygen relaxation; Lindblad implementation | Independent solver, positivity and accounting tests with relaxation | Framework complete; physical inputs unavailable | Local isotropic depolarization is illustrative, not measured T1/T2. |
+| Exchange, dipolar, geometry | Hamiltonian terms; `geometry_exchange_dipolar_association_separation_duration` | Exchange/common-Zeeman and mixing tests | Framework complete; physical inputs unavailable | No exact distance, orientation, J, tensor, association/separation rates. |
+| Dismutation | `downstream_ros_species_resolved`; `reference_evidence.downstream` | Stiff optional-anion, speciation, stoichiometry and loss-balance tests | Complete bounded aqueous framework | Fixed pH, rapid equilibrium, constant SOD; biological transfer open. |
+| Experimental ROS validation | `validation_datasets` and provenance topic 8 | Schema/inactive-status tests; preparation-specific sources above | Evidence table complete; model comparison blocked | Conditions/normalizations differ and encounter inputs are unavailable. |
+| Spin-correlation evidence | `reference_evidence.encounter.coherence` | Documented exact-system/disconfirming search | Review complete; evidence unavailable | No D/Q transient populations, coherence, or state-resolved products. |
+| D/Q mixing interactions | `hamiltonian`, `initial_density`, encounter propagators | Unitary-invariance, selective-loss, no-mixing and independent-solver tests | Complete sensitivity framework | Magnitudes and chemically prepared state are unsupported. |
+
+| Output | Deliverable mapping | Test / evidence | Status | Limitation |
+|---|---|---|---|---|
+| A — provenance table | `configs/parameter_provenance.csv` | Full CSV→JSON path and duplicate consistency tests | Complete | Unavailable values remain explicit. |
+| B — Hamiltonian | `spin_chemistry.py::hamiltonian`; equation above | Spin algebra, limits, independent ODE and circuit tests | Complete implementation | Local-field and relaxation terms are illustrative when activated. |
+| C — initial states | `initial_density`; `initial_state_scenarios` | Positivity, normalization, mixture-domain tests | Complete benchmarks | No chemically prepared state evidence. |
+| D — kQ/kD | disabled encounter records; dimensionless sweep | Null-model and sensitivity output tests | Complete sensitivity coordinate | No physical range, ordering, or prior. |
+| E — reaction network | “Reaction network” above; staged functions | Stoichiometry and stage-separation tests | Complete bounded network | Association/preparation and biological sinks unsupported. |
+| F — supported claims | “Supported claims” above | Authority policy tests | Complete | Claims are preparation/condition scoped. |
+| G — unsupported claims | “Prohibited claims” above | Evidence-mode refusal tests | Complete | Quantitative biological readiness explicitly prohibited. |
+| H — JSON | `configs/doxorubicin_parameters.json` schema 2.2 | Authority-bundle validation | Complete | Sensitivity values are illustrative. |
+| I — CSV | provenance plus `results/demo/dimensionless_sensitivity.csv` | Provenance and reproducible-analysis tests | Complete | Demo grid is not measured. |
+| J — existing-repository mapping | README, this section, legacy `dataset/` | Required-path gate; legacy data untouched | Complete | Legacy semiconductor data do not parameterize chemistry. |

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720">
+<title>Dimensionless encounter sensitivity summary</title>
+<desc>Four one-factor plots of unpolarized primary superoxide yield per encounter.</desc>
+<rect width="100%" height="100%" fill="white"/>
+<text x="30" y="30" font-family="sans-serif" font-size="18">Non-predictive one-factor sensitivity: unpolarized per-encounter yield</text>
+<line x1="60" y1="305" x2="450" y2="305" stroke="black"/>
+<line x1="60" y1="70" x2="60" y2="305" stroke="black"/>
+<text x="60" y="58" font-family="sans-serif" font-size="14">mixing_over_reference (log axis; zero shown at 10^-3)</text>
+<circle cx="60.00" cy="250.04" r="4" fill="#2356a8"><title>0: 0.233861</title></circle>
+<text x="60.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">0</text>
+<circle cx="255.00" cy="250.02" r="4" fill="#2356a8"><title>0.1: 0.233972</title></circle>
+<text x="255.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">0.1</text>
+<circle cx="352.50" cy="248.10" r="4" fill="#2356a8"><title>1: 0.242129</title></circle>
+<text x="352.50" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">1</text>
+<circle cx="450.00" cy="242.74" r="4" fill="#2356a8"><title>10: 0.264932</title></circle>
+<text x="450.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">10</text>
+<polyline points="60.00,250.04 255.00,250.02 352.50,248.10 450.00,242.74" fill="none" stroke="#2356a8" stroke-width="2"/>
+<text x="18" y="309.0" font-family="sans-serif" font-size="11">0.0</text>
+<text x="18" y="191.5" font-family="sans-serif" font-size="11">0.5</text>
+<text x="18" y="74.0" font-family="sans-serif" font-size="11">1.0</text>
+<text x="12" y="187.5" text-anchor="middle" transform="rotate(-90 12 187.5)" font-family="sans-serif" font-size="11">Yield / encounter</text>
+<line x1="530" y1="305" x2="920" y2="305" stroke="black"/>
+<line x1="530" y1="70" x2="530" y2="305" stroke="black"/>
+<text x="530" y="58" font-family="sans-serif" font-size="14">relaxation_over_reference (log axis; zero shown at 10^-3)</text>
+<circle cx="530.00" cy="249.00" r="4" fill="#2356a8"><title>0: 0.238296</title></circle>
+<text x="530.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">0</text>
+<circle cx="686.00" cy="248.10" r="4" fill="#2356a8"><title>0.1: 0.242129</title></circle>
+<text x="686.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">0.1</text>
+<circle cx="764.00" cy="243.61" r="4" fill="#2356a8"><title>1: 0.261244</title></circle>
+<text x="764.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">1</text>
+<circle cx="920.00" cy="237.97" r="4" fill="#2356a8"><title>100: 0.285255</title></circle>
+<text x="920.00" y="323" text-anchor="middle" font-family="sans-serif" font-size="11">100</text>
+<polyline points="530.00,249.00 686.00,248.10 764.00,243.61 920.00,237.97" fill="none" stroke="#2356a8" stroke-width="2"/>
+<text x="488" y="309.0" font-family="sans-serif" font-size="11">0.0</text>
+<text x="488" y="191.5" font-family="sans-serif" font-size="11">0.5</text>
+<text x="488" y="74.0" font-family="sans-serif" font-size="11">1.0</text>
+<text x="482" y="187.5" text-anchor="middle" transform="rotate(-90 482 187.5)" font-family="sans-serif" font-size="11">Yield / encounter</text>
+<line x1="60" y1="625" x2="450" y2="625" stroke="black"/>
+<line x1="60" y1="390" x2="60" y2="625" stroke="black"/>
+<text x="60" y="378" font-family="sans-serif" font-size="14">escape_over_reference (log axis; zero shown at 10^-3)</text>
+<circle cx="60.00" cy="461.99" r="4" fill="#2356a8"><title>0.1: 0.693678</title></circle>
+<text x="60.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">0.1</text>
+<circle cx="255.00" cy="568.10" r="4" fill="#2356a8"><title>1: 0.242129</title></circle>
+<text x="255.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">1</text>
+<circle cx="450.00" cy="616.32" r="4" fill="#2356a8"><title>10: 0.036941</title></circle>
+<text x="450.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">10</text>
+<polyline points="60.00,461.99 255.00,568.10 450.00,616.32" fill="none" stroke="#2356a8" stroke-width="2"/>
+<text x="18" y="629.0" font-family="sans-serif" font-size="11">0.0</text>
+<text x="18" y="511.5" font-family="sans-serif" font-size="11">0.5</text>
+<text x="18" y="394.0" font-family="sans-serif" font-size="11">1.0</text>
+<text x="12" y="507.5" text-anchor="middle" transform="rotate(-90 12 507.5)" font-family="sans-serif" font-size="11">Yield / encounter</text>
+<line x1="530" y1="625" x2="920" y2="625" stroke="black"/>
+<line x1="530" y1="390" x2="530" y2="625" stroke="black"/>
+<text x="530" y="378" font-family="sans-serif" font-size="14">kq_over_kd (log axis; zero shown at 10^-3)</text>
+<circle cx="530.00" cy="580.64" r="4" fill="#2356a8"><title>0: 0.188772</title></circle>
+<text x="530.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">0</text>
+<circle cx="725.00" cy="568.10" r="4" fill="#2356a8"><title>0.1: 0.242129</title></circle>
+<text x="725.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">0.1</text>
+<circle cx="822.50" cy="507.50" r="4" fill="#2356a8"><title>1: 0.5</title></circle>
+<text x="822.50" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">1</text>
+<circle cx="920.00" cy="441.05" r="4" fill="#2356a8"><title>10: 0.782756</title></circle>
+<text x="920.00" y="643" text-anchor="middle" font-family="sans-serif" font-size="11">10</text>
+<polyline points="530.00,580.64 725.00,568.10 822.50,507.50 920.00,441.05" fill="none" stroke="#2356a8" stroke-width="2"/>
+<text x="488" y="629.0" font-family="sans-serif" font-size="11">0.0</text>
+<text x="488" y="511.5" font-family="sans-serif" font-size="11">0.5</text>
+<text x="488" y="394.0" font-family="sans-serif" font-size="11">1.0</text>
+<text x="482" y="507.5" text-anchor="middle" transform="rotate(-90 482 507.5)" font-family="sans-serif" font-size="11">Yield / encounter</text>
+<text x="30" y="700" font-family="sans-serif" font-size="12">Illustrative bounds, not measured ranges or priors; yields are not concentrations or fluxes.</text>
+</svg>

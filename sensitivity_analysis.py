@@ -1,0 +1,307 @@
+"""Small, dimensionless, non-predictive encounter sensitivity sweep."""
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+import numpy as np
+
+from spin_chemistry import (
+    EncounterParameters,
+    propagate_encounter_reference,
+    validate_authority_bundle,
+)
+
+
+ROOT = Path(__file__).resolve().parent
+LIMITATIONS = (
+    "Illustrative one-factor-at-a-time grid; bounds are not measured ranges or "
+    "probability priors. Results are populations and per-encounter yields, not "
+    "concentrations or biological fluxes. No encounter yield is converted to "
+    "molarity, and no continuous biological ROS source is modeled."
+)
+
+
+def _metadata(config: Path, provenance: Path) -> dict:
+    digest = hashlib.sha256()
+    for path in (ROOT / "spin_chemistry.py", Path(__file__), config, provenance):
+        try:
+            identity = str(path.resolve().relative_to(ROOT))
+        except ValueError:
+            identity = str(path.resolve())
+        digest.update(identity.encode())
+        digest.update(path.read_bytes())
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+        text=True, capture_output=True,
+    ).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=ROOT, check=True,
+        text=True, capture_output=True,
+    ).stdout.splitlines()
+    return {
+        "commit": commit,
+        "dirty_tree": bool(dirty),
+        "dirty_entries": dirty,
+        "source_fingerprint_sha256": digest.hexdigest(),
+        "config_identity": (
+            str(config.resolve().relative_to(ROOT))
+            if config.resolve().is_relative_to(ROOT)
+            else str(config.resolve())
+        ),
+        "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        "provenance_identity": (
+            str(provenance.resolve().relative_to(ROOT))
+            if provenance.resolve().is_relative_to(ROOT)
+            else str(provenance.resolve())
+        ),
+        "provenance_sha256": hashlib.sha256(provenance.read_bytes()).hexdigest(),
+    }
+
+
+def _scenarios() -> list[dict[str, float | str]]:
+    baseline = {
+        "mixing_over_reference": 1.0,
+        "relaxation_over_reference": 0.1,
+        "escape_over_reference": 1.0,
+        "kq_over_kd": 0.1,
+    }
+    definitions: list[dict[str, float | str]] = [
+        {"scenario": "baseline", **baseline}
+    ]
+    grids = {
+        "mixing_over_reference": [0.0, 0.1, 10.0],
+        "relaxation_over_reference": [0.0, 1.0, 100.0],
+        "escape_over_reference": [0.1, 10.0],
+        "kq_over_kd": [0.0, 1.0, 10.0],
+    }
+    for coordinate, values in grids.items():
+        for value in values:
+            item = dict(baseline)
+            item[coordinate] = value
+            item["scenario"] = f"vary_{coordinate}:{value:g}"
+            definitions.append(item)
+    return definitions
+
+
+def run_sweep(reference_rate_s: float, samples: int) -> list[dict]:
+    if not np.isfinite(reference_rate_s) or reference_rate_s <= 0:
+        raise ValueError("reference_rate_s must be finite and positive")
+    if isinstance(samples, bool) or not isinstance(samples, int) or samples < 2:
+        raise ValueError("samples must be an integer >= 2")
+    states = [
+        ("unpolarized", None), ("doublet", None), ("quartet", None),
+        ("mixture", 0.25), ("mixture", 0.75),
+    ]
+    duration_s = 8.0 / reference_rate_s
+    rows = []
+    for scenario in _scenarios():
+        parameters = EncounterParameters(
+            local_field_proxy_rad_s=(
+                float(scenario["mixing_over_reference"]) * reference_rate_s,
+                0.0,
+                0.0,
+            ),
+            radical_relaxation_s=(
+                float(scenario["relaxation_over_reference"]) * reference_rate_s
+            ),
+            oxygen_relaxation_s=(
+                float(scenario["relaxation_over_reference"]) * reference_rate_s
+            ),
+            k_doublet_s=reference_rate_s,
+            k_quartet_s=float(scenario["kq_over_kd"]) * reference_rate_s,
+            k_escape_s=float(scenario["escape_over_reference"]) * reference_rate_s,
+        )
+        for state, p_doublet in states:
+            result = propagate_encounter_reference(
+                parameters, duration_s, state, samples, p_doublet
+            )
+            rows.append({
+                **scenario,
+                "initial_state": state,
+                "p_doublet_requested": "" if p_doublet is None else p_doublet,
+                "p_doublet_initial": result["p_doublet_initial"],
+                "reference_rate_s^-1": reference_rate_s,
+                "duration_s": duration_s,
+                "samples": samples,
+                "primary_superoxide_yield_per_encounter": result[
+                    "primary_superoxide_yield"
+                ],
+                "doublet_reaction_yield_per_encounter": result[
+                    "doublet_reaction_yield"
+                ],
+                "quartet_reaction_yield_per_encounter": result[
+                    "quartet_reaction_yield"
+                ],
+                "escape_yield_per_encounter": result["escape_yield"],
+                "survival_probability": result["unresolved_probability"],
+                "probability_balance": (
+                    result["primary_superoxide_yield"] + result["escape_yield"]
+                    + result["unresolved_probability"]
+                ),
+                "output_class": "dimensionless populations/per-encounter yields",
+                "non_predictive": True,
+            })
+    return rows
+
+
+def _write_svg(rows: list[dict], path: Path) -> None:
+    """Write a dependency-free summary figure for the four coordinates."""
+    width, height = 960, 720
+    panels = [
+        "mixing_over_reference", "relaxation_over_reference",
+        "escape_over_reference", "kq_over_kd",
+    ]
+    selected = [row for row in rows if row["initial_state"] == "unpolarized"]
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<title>Dimensionless encounter sensitivity summary</title>',
+        '<desc>Four one-factor plots of unpolarized primary superoxide yield per encounter.</desc>',
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="30" y="30" font-family="sans-serif" font-size="18">'
+        'Non-predictive one-factor sensitivity: unpolarized per-encounter yield</text>',
+    ]
+    for panel_index, coordinate in enumerate(panels):
+        x0 = 60 + (panel_index % 2) * 470
+        y0 = 70 + (panel_index // 2) * 320
+        plot_w, plot_h = 390, 235
+        varied = [
+            row for row in selected
+            if row["scenario"] == "baseline"
+            or str(row["scenario"]).startswith(f"vary_{coordinate}:")
+        ]
+        unique = {}
+        for row in varied:
+            unique[float(row[coordinate])] = float(
+                row["primary_superoxide_yield_per_encounter"]
+            )
+        points = sorted(unique.items())
+        transformed = [np.log10(max(x, 1e-3)) for x, _ in points]
+        xmin, xmax = min(transformed), max(transformed)
+        if xmax == xmin:
+            xmax = xmin + 1
+        parts.extend([
+            f'<line x1="{x0}" y1="{y0 + plot_h}" x2="{x0 + plot_w}" '
+            f'y2="{y0 + plot_h}" stroke="black"/>',
+            f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y0 + plot_h}" stroke="black"/>',
+            f'<text x="{x0}" y="{y0 - 12}" font-family="sans-serif" font-size="14">'
+            f'{coordinate} (log axis; zero shown at 10^-3)</text>',
+        ])
+        coordinates = []
+        for transformed_x, (raw_x, y) in zip(transformed, points):
+            px = x0 + (transformed_x - xmin) / (xmax - xmin) * plot_w
+            py = y0 + (1 - y) * plot_h
+            coordinates.append(f"{px:.2f},{py:.2f}")
+            parts.append(
+                f'<circle cx="{px:.2f}" cy="{py:.2f}" r="4" fill="#2356a8">'
+                f'<title>{raw_x:g}: {y:.6g}</title></circle>'
+            )
+            parts.append(
+                f'<text x="{px:.2f}" y="{y0 + plot_h + 18}" text-anchor="middle" '
+                f'font-family="sans-serif" font-size="11">{raw_x:g}</text>'
+            )
+        parts.append(
+            f'<polyline points="{" ".join(coordinates)}" fill="none" '
+            'stroke="#2356a8" stroke-width="2"/>'
+        )
+        for tick in (0.0, 0.5, 1.0):
+            py = y0 + (1 - tick) * plot_h
+            parts.append(
+                f'<text x="{x0 - 42}" y="{py + 4}" font-family="sans-serif" '
+                f'font-size="11">{tick:.1f}</text>'
+            )
+        parts.append(
+            f'<text x="{x0 - 48}" y="{y0 + plot_h / 2}" text-anchor="middle" '
+            f'transform="rotate(-90 {x0 - 48} {y0 + plot_h / 2})" '
+            'font-family="sans-serif" font-size="11">Yield / encounter</text>'
+        )
+    parts.extend([
+        '<text x="30" y="700" font-family="sans-serif" font-size="12">'
+        'Illustrative bounds, not measured ranges or priors; yields are not concentrations or fluxes.</text>',
+        '</svg>',
+    ])
+    path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reference-rate-s", type=float, required=True)
+    parser.add_argument("--samples", type=int, default=81)
+    parser.add_argument(
+        "--config", type=Path,
+        default=ROOT / "configs" / "doxorubicin_parameters.json",
+    )
+    parser.add_argument("--provenance", type=Path)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    config = args.config.resolve()
+    provenance = (
+        args.provenance.resolve()
+        if args.provenance
+        else config.with_name("parameter_provenance.csv")
+    )
+    validate_authority_bundle(config, provenance)
+    metadata = _metadata(config, provenance)
+    rows = run_sweep(args.reference_rate_s, args.samples)
+    for row in rows:
+        row.update({
+            "commit": metadata["commit"],
+            "dirty_tree": metadata["dirty_tree"],
+            "source_fingerprint_sha256": metadata["source_fingerprint_sha256"],
+            "config_identity": metadata["config_identity"],
+            "config_sha256": metadata["config_sha256"],
+            "provenance_identity": metadata["provenance_identity"],
+            "provenance_sha256": metadata["provenance_sha256"],
+            "limitations": LIMITATIONS,
+        })
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = args.output_dir / "dimensionless_sensitivity.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    svg_path = args.output_dir / "dimensionless_sensitivity.svg"
+    _write_svg(rows, svg_path)
+    summary = {
+        "output_label": "NON-PREDICTIVE DIMENSIONLESS SENSITIVITY OUTPUT",
+        "scenario": "one-factor-at-a-time dimensionless encounter sweep",
+        "normalization": {
+            "reference_rate_s^-1": args.reference_rate_s,
+            "convention": (
+                "kD=k_ref; mixing angular frequency, both local relaxation rates, "
+                "and escape are divided by k_ref; kQ/kD is dimensionless; "
+                "duration=8/k_ref"
+            ),
+        },
+        "resolved_inputs": {
+            "coordinates": _scenarios(),
+            "initial_states": ["unpolarized", "doublet", "quartet", "mixture(0.25)", "mixture(0.75)"],
+            "zero_mixing_control": True,
+            "fast_relaxation_control": "relaxation/reference=100",
+            "spin_independent_null": "kQ/kD=1",
+        },
+        "units": {
+            "rates_and_frequencies": "normalized by positive k_ref",
+            "duration": "s",
+            "outputs": "dimensionless populations and per-encounter yields",
+        },
+        "numerical_settings": {
+            "solver": "six-state constant-generator matrix exponential Pade(13)",
+            "samples": args.samples,
+            "row_count": len(rows),
+        },
+        "limitations": LIMITATIONS,
+        "metadata": metadata,
+        "files": [csv_path.name, svg_path.name],
+    }
+    summary_path = args.output_dir / "dimensionless_sensitivity_summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"csv": str(csv_path), "figure": str(svg_path), "summary": str(summary_path), "rows": len(rows)}))
+
+
+if __name__ == "__main__":
+    main()
