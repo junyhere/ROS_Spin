@@ -13,11 +13,18 @@ import unittest
 
 import numpy as np
 from PIL import Image, ImageStat
+import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sensitivity_analysis import encounter_result_row  # noqa: E402
+from paper_analysis import TOLERANCES  # noqa: E402
+from plotting import (  # noqa: E402
+    plot_bulk_rates,
+    plot_controls,
+    plot_solver_validation,
+)
 from spin_chemistry import (  # noqa: E402
     ModelPolicyError,
     USE_CONDITION_MATCHED,
@@ -111,6 +118,36 @@ class PaperPipelineTests(unittest.TestCase):
                 self.assertGreater(image.width, 300)
                 self.assertGreater(image.height, 200)
                 self.assertGreater(sum(ImageStat.Stat(image.convert("RGB")).var), 1.0)
+
+    def test_known_publication_layout_overlaps_are_prevented(self):
+        controls = plot_controls(self._rows("figure07_controls"))
+        controls.canvas.draw()
+        controls_axis = controls.axes[0].get_window_extent()
+        controls_legend = controls.axes[0].get_legend().get_window_extent()
+        self.assertGreaterEqual(controls_legend.y0, controls_axis.y1)
+        plt.close(controls)
+
+        solver = plot_solver_validation(
+            self._rows("figure08_solver_validation"), TOLERANCES
+        )
+        solver.canvas.draw()
+        solver_legend = solver.axes[1].get_legend()
+        self.assertEqual(solver_legend.get_frame().get_alpha(), 1.0)
+        self.assertEqual(solver_legend.get_frame().get_facecolor(), (1.0, 1.0, 1.0, 1.0))
+        plt.close(solver)
+
+        bulk = plot_bulk_rates(self._rows("figure10_bulk_rate_comparison"))
+        bulk.canvas.draw()
+        renderer = bulk.canvas.get_renderer()
+        table = bulk.axes[1].tables[0]
+        for coordinates, cell in table.get_celld().items():
+            cell_box = cell.get_window_extent(renderer)
+            text_box = cell.get_text().get_window_extent(renderer)
+            self.assertGreaterEqual(text_box.x0, cell_box.x0, coordinates)
+            self.assertLessEqual(text_box.x1, cell_box.x1, coordinates)
+            self.assertGreaterEqual(text_box.y0, cell_box.y0, coordinates)
+            self.assertLessEqual(text_box.y1, cell_box.y1, coordinates)
+        plt.close(bulk)
 
     def test_sweep_rows_have_inputs_provenance_results_and_balances(self):
         required = {

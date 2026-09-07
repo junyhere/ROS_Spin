@@ -276,7 +276,13 @@ def plot_controls(rows: list[dict]):
     axes[0].set_ylim(0, 1.05)
     axes[0].set_xticks([])
     axes[0].set_ylabel("Final probability")
-    axes[0].legend(ncol=3, frameon=False)
+    axes[0].legend(
+        ncol=3,
+        frameon=False,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        borderaxespad=0.0,
+    )
     axes[0].grid(axis="y", alpha=0.2)
     commutators = np.array([float(r["dq_commutator_frobenius"]) for r in rows])
     axes[1].bar(x, commutators, color=[COLORS["doublet"] if v > 1e-12 else "#BBBBBB" for v in commutators])
@@ -285,7 +291,7 @@ def plot_controls(rows: list[dict]):
     axes[1].set_ylabel(r"$\|[H,P_D]\|_F/k_{ref}$")
     axes[1].set_xticks(x, labels, rotation=24, ha="right")
     axes[1].grid(axis="y", alpha=0.2)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
     return fig
 
 
@@ -305,7 +311,9 @@ def plot_solver_validation(rows: list[dict], tolerances: dict):
         axes[0, 1].plot(x, np.maximum([float(r[key]) for r in rows], floor), label=label, color=color)
     axes[0, 1].axhline(tolerances["observable"], color="#D55E00", linestyle="--")
     axes[0, 1].set_ylabel("Population absolute difference")
-    axes[0, 1].legend(frameon=False)
+    axes[0, 1].legend(
+        frameon=True, facecolor="white", framealpha=1.0, edgecolor="none"
+    )
     for key, label, color in (
         ("doublet_reaction_yield_abs_difference", "D reaction", COLORS["doublet"]),
         ("quartet_reaction_yield_abs_difference", "Q reaction", COLORS["quartet"]),
@@ -397,7 +405,10 @@ def plot_bulk_rates(rows: list[dict]):
     )
     table.auto_set_font_size(False)
     table.set_fontsize(6.2)
-    table.scale(1, 2.7)
+    # The longest source entry spans seven lines.  Give every row enough
+    # vertical room so text cannot cross the horizontal cell rules in any
+    # output backend.
+    table.scale(1, 3.5)
     detail.set_title("Records remain conditionally distinct", fontsize=10)
     return fig
 
