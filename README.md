@@ -17,6 +17,76 @@ matrix exponential and remains the reference implementation. Parameter authority
 [`configs/doxorubicin_parameters.json`](configs/doxorubicin_parameters.json), and
 [`configs/parameter_provenance.csv`](configs/parameter_provenance.csv).
 
+## Paper reproduction
+
+The active implementation is deliberately small: `spin_chemistry.py` contains
+the six-state equations, propagation, downstream kinetics, validation, and
+evidence policy; `ROS.py` runs individual cases; `sensitivity_analysis.py`
+defines reusable one- and two-dimensional sensitivity sweeps;
+`paper_analysis.py` generates the complete paper bundle; and `plotting.py`
+contains shared noninteractive Matplotlib rendering. All encounter-level paper
+outputs are labelled non-predictive.
+
+Set up the pinned environment and run the complete tests:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Generate a rapid complete bundle or the publication-grid bundle. An existing,
+nonempty output directory is refused unless `--overwrite` is explicit.
+
+```bash
+.venv/bin/python paper_analysis.py --quick --execute-circuit \
+  --output-dir results/paper-quick
+.venv/bin/python paper_analysis.py --full --execute-circuit \
+  --output-dir results/paper
+```
+
+The default formats are 300-dpi PNG plus vector PDF and SVG. Useful bounded
+overrides include `--reference-rate-s`, `--samples`, `--grid-size`, `--config`,
+`--provenance`, `--formats`, and `--dpi`. Grid bounds are illustrative
+computational bounds—not measured ranges, plausible ranges, confidence
+intervals, or priors.
+
+Run one individual encounter and one mixture benchmark:
+
+```bash
+.venv/bin/python ROS.py --mode sensitivity --allow-sensitivity \
+  --sensitivity-scenario local_field_mixing_probe --initial-state unpolarized
+.venv/bin/python ROS.py --mode sensitivity --allow-sensitivity \
+  --sensitivity-scenario local_field_mixing_probe --initial-state mixture \
+  --p-doublet 0.25
+```
+
+Run literature arithmetic and an exact condition-matched bulk calculation:
+
+```bash
+.venv/bin/python ROS.py --bulk-sq-m 1e-6 --bulk-o2-m 2e-4 \
+  --bulk-rate-key doxorubicin_semiquinone_plus_oxygen_pH6 \
+  --bulk-use-scope literature_arithmetic
+.venv/bin/python ROS.py --bulk-sq-m 1e-6 --bulk-o2-m 2e-4 \
+  --bulk-rate-key doxorubicin_semiquinone_plus_oxygen_pH6 \
+  --bulk-use-scope condition_matched_prediction \
+  --bulk-condition-profile land_1985_pH6
+```
+
+Circuit execution is optional and covers only coherent simulator/embedding
+consistency. If Qiskit cannot load, the pipeline writes the exact dependency
+failure and does not create an empty validation figure. On macOS, open all PNG
+figures from a completed run with:
+
+```bash
+open results/paper/figures/*.png
+```
+
+Each run contains `data/`, `figures/`, `tables/`, `metadata/`, and a generated
+`README.md`. Every figure is rendered only from its saved same-named CSV source
+table; manifests record Git state, hashes, versions, invocation, grids, sample
+counts, numerical tolerances, skipped features, and limitations.
+
 ## Execution modes
 
 `evidence_backed` is the default. It refuses an encounter-level yield because
@@ -145,8 +215,19 @@ or conversion to biological molarity is performed.
 
 ## Legacy data
 
-The processed semiconductor spin-shuttling data below are retained for Git
-history and reproducibility but are not used by the chemical spin model.
+The processed semiconductor spin-shuttling data below and their original
+scripts are retained under `dataset/` and `legacy/` for Git history and
+reproducibility, but are not used by the chemical spin model. Historical root
+script names now stop with a clear legacy redirect rather than importing stale
+chemical APIs.
+
+The legacy results are invalid as evidence for the corrected anthracycline
+model: two-spin singlet/triplet and Bell-state parity do not map to the exact
+doublet/quartet projectors of a spin-1/2 plus spin-1 system; CZ circuit depth is
+not chemical encounter time; `f_ow`/`f_fb` transport weights do not define
+chemical preparation or reaction; and semiconductor damping data do not supply
+doxorubicin/O2 T1, T2, relaxation, escape, or encounter geometry. They must not
+be translated mechanically or used to parameterize active calculations.
 
 # Original project overview
 

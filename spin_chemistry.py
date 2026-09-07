@@ -382,6 +382,7 @@ def propagate_encounter_reference(
     doublet_yield, quartet_yield, escape_yield = (
         float(value) for value in np.real(trajectory[-1, 36:39])
     )
+    cumulative_yields = np.real(trajectory[:, 36:39])
     probability_balance = doublet_yield + quartet_yield + escape_yield + float(
         survival[-1]
     )
@@ -400,6 +401,12 @@ def propagate_encounter_reference(
         "survival": survival,
         "doublet_reaction_yield": doublet_yield,
         "quartet_reaction_yield": quartet_yield,
+        "cumulative_doublet_reaction_yield": cumulative_yields[:, 0],
+        "cumulative_quartet_reaction_yield": cumulative_yields[:, 1],
+        "cumulative_primary_superoxide_yield": (
+            cumulative_yields[:, 0] + cumulative_yields[:, 1]
+        ),
+        "cumulative_escape_yield": cumulative_yields[:, 2],
         "primary_superoxide_yield": doublet_yield + quartet_yield,
         "superoxide_yield": doublet_yield + quartet_yield,
         "escape_yield": escape_yield,
@@ -563,6 +570,7 @@ def propagate_encounter_independent(
     p_quartet_values = np.einsum("ij,tji->t", P_QUARTET, densities).real
     survival = np.trace(densities, axis1=1, axis2=2).real
     yields = trajectory[-1, 36:39].real
+    cumulative_yields = trajectory[:, 36:39].real
     if not all(np.all(np.isfinite(item)) for item in (densities, yields, survival)):
         raise FloatingPointError("independent encounter result is nonfinite")
     if min(float(yields.min()), float(survival.min())) < -1e-8:
@@ -576,6 +584,12 @@ def propagate_encounter_independent(
         "survival": survival,
         "doublet_reaction_yield": float(yields[0]),
         "quartet_reaction_yield": float(yields[1]),
+        "cumulative_doublet_reaction_yield": cumulative_yields[:, 0],
+        "cumulative_quartet_reaction_yield": cumulative_yields[:, 1],
+        "cumulative_primary_superoxide_yield": (
+            cumulative_yields[:, 0] + cumulative_yields[:, 1]
+        ),
+        "cumulative_escape_yield": cumulative_yields[:, 2],
         "primary_superoxide_yield": float(yields[0] + yields[1]),
         "superoxide_yield": float(yields[0] + yields[1]),
         "escape_yield": float(yields[2]),
@@ -1104,10 +1118,13 @@ def execute_three_qubit_unitary_circuit(
     pq8[np.ix_(physical, physical)] = P_QUARTET
     expected8 = np.zeros(8, complex)
     expected8[physical] = expected6
-    dq_error = max(
-        abs(np.vdot(simulated, pd8 @ simulated) - np.vdot(expected8, pd8 @ expected8)),
-        abs(np.vdot(simulated, pq8 @ simulated) - np.vdot(expected8, pq8 @ expected8)),
+    doublet_observable_error = abs(
+        np.vdot(simulated, pd8 @ simulated) - np.vdot(expected8, pd8 @ expected8)
     )
+    quartet_observable_error = abs(
+        np.vdot(simulated, pq8 @ simulated) - np.vdot(expected8, pq8 @ expected8)
+    )
+    dq_error = max(doublet_observable_error, quartet_observable_error)
     return {
         "status": "executed",
         "qubits": 3,
@@ -1118,6 +1135,8 @@ def execute_three_qubit_unitary_circuit(
         "max_statevector_error": float(
             np.max(np.abs(simulated[physical] - expected6))
         ),
+        "doublet_observable_error": float(abs(doublet_observable_error)),
+        "quartet_observable_error": float(abs(quartet_observable_error)),
         "physical_subspace_leakage_probability": float(
             np.sum(np.abs(simulated[complement]) ** 2)
         ),

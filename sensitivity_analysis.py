@@ -25,6 +25,187 @@ LIMITATIONS = (
     "molarity, and no continuous biological ROS source is modeled."
 )
 
+INITIAL_STATES = (
+    ("unpolarized", None, "unpolarized"),
+    ("doublet", None, "doublet-manifold mixture"),
+    ("quartet", None, "quartet-manifold mixture"),
+    ("mixture", 0.25, "pD=0.25 manifold mixture"),
+    ("mixture", 0.75, "pD=0.75 manifold mixture"),
+)
+
+
+def normalized_axis(size: int, low: float = 1e-2, high: float = 1e2) -> np.ndarray:
+    """Return zero plus a bounded logarithmic axis including exactly one.
+
+    The values are illustrative computational coordinates, not measured ranges,
+    confidence intervals, or priors.
+    """
+    if isinstance(size, bool) or not isinstance(size, int) or not 4 <= size <= 41:
+        raise ValueError("grid size must be an integer from 4 through 41")
+    if not (np.isfinite(low) and np.isfinite(high) and 0 < low < 1 < high):
+        raise ValueError("normalized nonzero bounds must satisfy 0 < low < 1 < high")
+    nonzero = np.geomspace(low, high, size - 1)
+    nonzero[np.argmin(np.abs(np.log(nonzero)))] = 1.0
+    return np.concatenate(([0.0], nonzero))
+
+
+def selectivity_axis(size: int) -> np.ndarray:
+    """Return a kQ/kD axis containing the zero and unity controls exactly."""
+    return normalized_axis(size, 1e-2, 1e1)
+
+
+def encounter_result_row(
+    *,
+    scenario_id: str,
+    reference_rate_s: float,
+    mixing_over_reference: float,
+    radical_relaxation_over_reference: float,
+    oxygen_relaxation_over_reference: float,
+    escape_over_reference: float,
+    kq_over_kd: float,
+    kd_over_reference: float = 1.0,
+    initial_state: str = "unpolarized",
+    p_doublet: float | None = None,
+    duration_over_reference: float = 8.0,
+    samples: int = 2,
+) -> dict:
+    """Resolve and execute one fully recorded non-predictive encounter case."""
+    if not np.isfinite(reference_rate_s) or reference_rate_s <= 0:
+        raise ValueError("reference_rate_s must be finite and positive")
+    coordinates = {
+        "mixing_over_reference": mixing_over_reference,
+        "radical_relaxation_over_reference": radical_relaxation_over_reference,
+        "oxygen_relaxation_over_reference": oxygen_relaxation_over_reference,
+        "escape_over_reference": escape_over_reference,
+        "kq_over_kd": kq_over_kd,
+        "kd_over_reference": kd_over_reference,
+        "duration_over_reference": duration_over_reference,
+    }
+    for name, value in coordinates.items():
+        if not np.isfinite(value) or value < 0:
+            raise ValueError(f"{name} must be finite and nonnegative")
+    kd = kd_over_reference * reference_rate_s
+    params = EncounterParameters(
+        local_field_proxy_rad_s=(mixing_over_reference * reference_rate_s, 0.0, 0.0),
+        radical_relaxation_s=radical_relaxation_over_reference * reference_rate_s,
+        oxygen_relaxation_s=oxygen_relaxation_over_reference * reference_rate_s,
+        k_doublet_s=kd,
+        k_quartet_s=kq_over_kd * kd,
+        k_escape_s=escape_over_reference * reference_rate_s,
+    )
+    duration_s = duration_over_reference / reference_rate_s
+    result = propagate_encounter_reference(
+        params, duration_s, initial_state, samples, p_doublet
+    )
+    initial_definitions = {
+        "unpolarized": "unpolarized I6/6",
+        "doublet": "doublet-manifold mixture PD/2",
+        "quartet": "quartet-manifold mixture PQ/4",
+        "mixture": f"manifold mixture pD={p_doublet}",
+    }
+    return {
+        "scenario_id": scenario_id,
+        "initial_state": initial_state,
+        "initial_state_definition": initial_definitions[initial_state],
+        "p_doublet_requested": "" if p_doublet is None else p_doublet,
+        "p_doublet_initial": result["p_doublet_initial"],
+        "reference_rate_s^-1": reference_rate_s,
+        "duration_over_reference": duration_over_reference,
+        "duration_s": duration_s,
+        "mixing_over_reference": mixing_over_reference,
+        "local_mixing_proxy_rad_s": mixing_over_reference * reference_rate_s,
+        "radical_relaxation_over_reference": radical_relaxation_over_reference,
+        "radical_relaxation_s^-1": radical_relaxation_over_reference * reference_rate_s,
+        "oxygen_relaxation_over_reference": oxygen_relaxation_over_reference,
+        "oxygen_relaxation_s^-1": oxygen_relaxation_over_reference * reference_rate_s,
+        "escape_over_reference": escape_over_reference,
+        "k_escape_s^-1": escape_over_reference * reference_rate_s,
+        "kd_over_reference": kd_over_reference,
+        "k_doublet_s^-1": kd,
+        "kq_over_kd": kq_over_kd,
+        "k_quartet_s^-1": kq_over_kd * kd,
+        "final_doublet_population": float(result["p_doublet"][-1]),
+        "final_quartet_population": float(result["p_quartet"][-1]),
+        "final_total_survival": float(result["survival"][-1]),
+        "doublet_reaction_yield_per_encounter": result["doublet_reaction_yield"],
+        "quartet_reaction_yield_per_encounter": result["quartet_reaction_yield"],
+        "primary_superoxide_yield_per_encounter": result["primary_superoxide_yield"],
+        "escape_yield_per_encounter": result["escape_yield"],
+        "unresolved_probability": result["unresolved_probability"],
+        "probability_balance": result["probability_balance"],
+        "probability_balance_error": result["probability_balance_error"],
+        "solver": result["numerical_method"],
+        "solver_samples": samples,
+        "output_class": "dimensionless populations/per-encounter yields",
+        "units": "dimensionless per encounter unless field name gives s^-1 or s",
+        "non_predictive": True,
+        "limitations": LIMITATIONS,
+    }
+
+
+def run_mixing_escape_sweep(
+    reference_rate_s: float, grid_size: int, kq_over_kd_values=(0.0, 0.1, 1.0, 10.0)
+) -> list[dict]:
+    """Bounded two-dimensional mixing/escape sweep for an unpolarized input."""
+    axis = normalized_axis(grid_size)
+    rows = []
+    for ratio in kq_over_kd_values:
+        for mixing in axis:
+            for escape in axis:
+                rows.append(encounter_result_row(
+                    scenario_id=f"mix_escape_kqkd_{ratio:g}",
+                    reference_rate_s=reference_rate_s,
+                    mixing_over_reference=float(mixing),
+                    radical_relaxation_over_reference=0.1,
+                    oxygen_relaxation_over_reference=0.1,
+                    escape_over_reference=float(escape),
+                    kq_over_kd=float(ratio),
+                ))
+    return rows
+
+
+def run_mixing_relaxation_sweep(reference_rate_s: float, grid_size: int) -> list[dict]:
+    """Bounded two-dimensional mixing/relaxation sweep for three inputs."""
+    axis = normalized_axis(grid_size)
+    rows = []
+    for initial_state, p_doublet, label in INITIAL_STATES[:3]:
+        for mixing in axis:
+            for relaxation in axis:
+                rows.append(encounter_result_row(
+                    scenario_id=f"mix_relax_{label.replace(' ', '_')}",
+                    reference_rate_s=reference_rate_s,
+                    mixing_over_reference=float(mixing),
+                    radical_relaxation_over_reference=float(relaxation),
+                    oxygen_relaxation_over_reference=float(relaxation),
+                    escape_over_reference=1.0,
+                    kq_over_kd=0.1,
+                    initial_state=initial_state,
+                    p_doublet=p_doublet,
+                ))
+    return rows
+
+
+def run_selectivity_sweep(reference_rate_s: float, grid_size: int) -> list[dict]:
+    """Sweep kQ/kD for initial states, mixing strengths, and escape ratios."""
+    ratios = selectivity_axis(grid_size)
+    rows = []
+    for initial_state, p_doublet, label in INITIAL_STATES:
+        for mixing in (0.0, 1.0, 10.0):
+            for escape in (0.1, 1.0, 10.0):
+                for ratio in ratios:
+                    rows.append(encounter_result_row(
+                        scenario_id=f"selectivity_{label.replace(' ', '_')}",
+                        reference_rate_s=reference_rate_s,
+                        mixing_over_reference=mixing,
+                        radical_relaxation_over_reference=0.1,
+                        oxygen_relaxation_over_reference=0.1,
+                        escape_over_reference=escape,
+                        kq_over_kd=float(ratio),
+                        initial_state=initial_state,
+                        p_doublet=p_doublet,
+                    ))
+    return rows
+
 
 def _metadata(config: Path, provenance: Path) -> dict:
     digest = hashlib.sha256()
@@ -97,55 +278,28 @@ def run_sweep(reference_rate_s: float, samples: int) -> list[dict]:
         ("unpolarized", None), ("doublet", None), ("quartet", None),
         ("mixture", 0.25), ("mixture", 0.75),
     ]
-    duration_s = 8.0 / reference_rate_s
     rows = []
     for scenario in _scenarios():
-        parameters = EncounterParameters(
-            local_field_proxy_rad_s=(
-                float(scenario["mixing_over_reference"]) * reference_rate_s,
-                0.0,
-                0.0,
-            ),
-            radical_relaxation_s=(
-                float(scenario["relaxation_over_reference"]) * reference_rate_s
-            ),
-            oxygen_relaxation_s=(
-                float(scenario["relaxation_over_reference"]) * reference_rate_s
-            ),
-            k_doublet_s=reference_rate_s,
-            k_quartet_s=float(scenario["kq_over_kd"]) * reference_rate_s,
-            k_escape_s=float(scenario["escape_over_reference"]) * reference_rate_s,
-        )
         for state, p_doublet in states:
-            result = propagate_encounter_reference(
-                parameters, duration_s, state, samples, p_doublet
+            row = encounter_result_row(
+                scenario_id=str(scenario["scenario"]),
+                reference_rate_s=reference_rate_s,
+                mixing_over_reference=float(scenario["mixing_over_reference"]),
+                radical_relaxation_over_reference=float(scenario["relaxation_over_reference"]),
+                oxygen_relaxation_over_reference=float(scenario["relaxation_over_reference"]),
+                escape_over_reference=float(scenario["escape_over_reference"]),
+                kq_over_kd=float(scenario["kq_over_kd"]),
+                initial_state=state,
+                p_doublet=p_doublet,
+                samples=samples,
             )
-            rows.append({
-                **scenario,
-                "initial_state": state,
-                "p_doublet_requested": "" if p_doublet is None else p_doublet,
-                "p_doublet_initial": result["p_doublet_initial"],
-                "reference_rate_s^-1": reference_rate_s,
-                "duration_s": duration_s,
+            row.update({
+                "scenario": scenario["scenario"],
+                "relaxation_over_reference": scenario["relaxation_over_reference"],
                 "samples": samples,
-                "primary_superoxide_yield_per_encounter": result[
-                    "primary_superoxide_yield"
-                ],
-                "doublet_reaction_yield_per_encounter": result[
-                    "doublet_reaction_yield"
-                ],
-                "quartet_reaction_yield_per_encounter": result[
-                    "quartet_reaction_yield"
-                ],
-                "escape_yield_per_encounter": result["escape_yield"],
-                "survival_probability": result["unresolved_probability"],
-                "probability_balance": (
-                    result["primary_superoxide_yield"] + result["escape_yield"]
-                    + result["unresolved_probability"]
-                ),
-                "output_class": "dimensionless populations/per-encounter yields",
-                "non_predictive": True,
+                "survival_probability": row["unresolved_probability"],
             })
+            rows.append(row)
     return rows
 
 

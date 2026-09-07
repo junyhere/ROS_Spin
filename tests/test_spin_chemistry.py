@@ -632,6 +632,8 @@ class CoherentValidationTests(unittest.TestCase):
         self.assertIn("dense", result["gate_implementation"])
         self.assertLess(result["max_basis_ordering_error"], 1e-15)
         self.assertLess(result["max_statevector_error"], 1e-12)
+        self.assertLess(result["doublet_observable_error"], 1e-12)
+        self.assertLess(result["quartet_observable_error"], 1e-12)
         self.assertLess(result["physical_subspace_leakage_probability"], 1e-24)
         self.assertLess(result["max_doublet_quartet_observable_error"], 1e-12)
         self.assertIn("reaction", " ".join(result["does_not_validate"]))
