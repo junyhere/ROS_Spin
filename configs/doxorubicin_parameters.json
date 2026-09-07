@@ -1,48 +1,157 @@
 {
-  "schema_version": "1.0",
-  "purpose": "Sensitivity-analysis inputs; not a quantitatively predictive parameterization",
+  "schema_version": "2.1",
+  "purpose": "Evidence-backed bulk calculations plus explicitly opted-in, non-predictive encounter sensitivity scenarios",
+  "model_status": "evidence_gated_dual_mode",
+  "quantitative_prediction_supported": false,
+  "evidence_review_date": "2026-09-06",
+  "research_pass_activation_changes": "The measured aqueous isotropic gSQ is the only active encounter datum; surrogate, analogue, gas, matrix, protein, and validation values remain inactive unless explicitly approved for a named scope.",
   "species": {"radical": "doxorubicin semiquinone", "radical_spin": 0.5, "oxygen": "ground-state triplet O2", "oxygen_spin": 1.0},
+  "execution_modes": {
+    "evidence_backed": {"encounter_yield_supported": false, "allowed_parameter_statuses": ["measured", "calculated", "fitted", "approved_surrogate"], "limitations": "Bulk bimolecular and condition-matched downstream calculations only; encounter yields are refused."},
+    "sensitivity": {"requires_explicit_opt_in": true, "requires_named_scenario": true, "non_predictive": true, "limitations": "Illustrative encounter and missing-interaction values are not estimates, priors, confidence intervals, or predictions."}
+  },
+  "initial_state_scenarios": {
+    "unpolarized": {"density": "I6/6", "status": "illustrative_benchmark", "evidence": "degeneracy only; not a measured birth state"},
+    "doublet": {"density": "P_D/2", "status": "illustrative_benchmark", "evidence": "not a measured birth state"},
+    "quartet": {"density": "P_Q/4", "status": "illustrative_benchmark", "evidence": "not a measured birth state"}
+  },
   "active_model": {
-    "profile": "illustrative_only",
-    "duration_s": 1e-6,
+    "profile": "evidence_backed",
+    "allow_illustrative_run": false,
+    "duration_s": {"value": 1e-6, "unit": "s", "status": "illustrative", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Illustrative encounter duration retained for named sensitivity scenarios; no exact-system residence-time measurement is available."},
     "encounter": {
-      "field_t": [0.0, 0.0, 0.00005],
-      "g_radical": 2.0033,
-      "g_oxygen": 2.0023,
-      "exchange_rad_s": 0.0,
-      "dipolar_rad_s": 0.0,
-      "dipolar_axis": [0.0, 0.0, 1.0],
-      "oxygen_zfs_d_rad_s": 0.0,
-      "oxygen_zfs_e_rad_s": 0.0,
-      "effective_hyperfine_rad_s": [0.0, 0.0, 0.0],
-      "radical_relaxation_s": 0.0,
-      "oxygen_relaxation_s": 0.0,
-      "k_doublet_s": 1000000.0,
-      "k_quartet_s": 10000.0,
-      "k_escape_s": 10000000.0
+      "field_t": {"value": [0.0, 0.0, 0.00005], "unit": "T", "status": "assumed", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Chosen sensitivity field, not an experimentally matched condition."},
+      "g_radical": {"value": 2.0035, "unit": "dimensionless", "status": "measured", "enabled": true, "species": "doxorubicin semiquinone", "environment": "N2-purged 100 mM phosphate with xanthine/xanthine oxidase", "temperature": null, "pH": 7.5, "source": "Kalyanaraman et al., Archives of Biochemistry and Biophysics (1991), doi:10.1016/0003-9861(91)90023-C", "limitations": "Measured isotropic one-line signal; no resolved g tensor, no hyperfine tensor, and no encounter-specific value."},
+      "g_oxygen": {"value": 2.0023, "unit": "dimensionless", "status": "assumed", "enabled": false, "species": "ground-state triplet O2", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Free-electron-like illustrative value retained only for named sensitivity scenarios; not measured for the solution-phase encounter."},
+      "exchange_rad_s": {"value": 0.0, "unit": "rad s^-1", "status": "unavailable", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "chemically relevant solution", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because the exact-system exchange coupling is unavailable; zero is not a physical measurement."},
+      "dipolar_rad_s": {"value": 0.0, "unit": "rad s^-1", "status": "unavailable", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "chemically relevant solution", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because distance, orientation, and spin density are unavailable; zero is not a physical measurement."},
+      "dipolar_axis": {"value": [0.0, 0.0, 1.0], "unit": "dimensionless unit vector", "status": "assumed", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "chemically relevant solution", "temperature": null, "pH": null, "source": null, "limitations": "Inactive placeholder axis because the dipolar term is disabled."},
+      "oxygen_zfs_d_rad_s": {"value": 0.0, "unit": "rad s^-1", "status": "unavailable", "enabled": false, "species": "ground-state triplet O2", "environment": "doxorubicin-semiquinone solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because encounter-specific O2 ZFS is unavailable; zero is not a physical measurement."},
+      "oxygen_zfs_e_rad_s": {"value": 0.0, "unit": "rad s^-1", "status": "unavailable", "enabled": false, "species": "ground-state triplet O2", "environment": "doxorubicin-semiquinone solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because encounter-specific O2 ZFS is unavailable; zero is not a physical measurement."},
+      "effective_hyperfine_rad_s": {"value": [0.0, 0.0, 0.0], "unit": "rad s^-1", "status": "unavailable", "enabled": false, "species": "doxorubicin semiquinone", "environment": "doxorubicin-semiquinone/O2 solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because resolved exact-system hyperfine parameters are unavailable; zero is not a physical measurement."},
+      "radical_relaxation_s": {"value": 0.0, "unit": "s^-1", "status": "unavailable", "enabled": false, "species": "doxorubicin semiquinone", "environment": "doxorubicin-semiquinone/O2 solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because exact-system spin-relaxation rates are unavailable; zero is not evidence of absent relaxation, and any nonzero use must be illustrative sensitivity analysis."},
+      "oxygen_relaxation_s": {"value": 0.0, "unit": "s^-1", "status": "unavailable", "enabled": false, "species": "ground-state triplet O2", "environment": "doxorubicin-semiquinone/O2 solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because exact-system spin-relaxation rates are unavailable; zero is not evidence of absent relaxation, and any nonzero use must be illustrative sensitivity analysis."},
+      "k_doublet_s": {"value": 1000000.0, "unit": "s^-1", "status": "illustrative", "enabled": false, "species": "doublet doxorubicin-semiquinone/O2 encounter", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled sensitivity-only first-order encounter rate. The measured bulk M^-1 s^-1 constants are never substituted or converted here."},
+      "k_quartet_s": {"value": 10000.0, "unit": "s^-1", "status": "illustrative", "enabled": false, "species": "quartet doxorubicin-semiquinone/O2 encounter", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled sensitivity-only rate corresponding to an illustrative k_Q/k_D ratio; no exact-system spin-resolved measurement exists."},
+      "k_escape_s": {"value": 10000000.0, "unit": "s^-1", "status": "illustrative", "enabled": false, "species": "doxorubicin-semiquinone/O2 encounter", "environment": "unspecified solution encounter", "temperature": null, "pH": null, "source": null, "limitations": "Disabled sensitivity-only escape rate; encounter geometry and residence time are unavailable."}
     },
     "downstream": {
-      "superoxide0_m": null,
-      "duration_s": 0.01,
-      "k_spont_m_inv_s": 200000.0,
-      "k_sod_m_inv_s": 2000000000.0,
-      "sod_m": 0.0,
-      "k_h2o2_loss_s": 0.0,
-      "samples": 201
+      "superoxide0_m": {"value": null, "unit": "M", "status": "unavailable", "enabled": false, "species": "superoxide", "environment": "unspecified downstream compartment", "temperature": null, "pH": null, "source": null, "limitations": "No predictive starting concentration is defined."},
+      "duration_s": {"value": 0.01, "unit": "s", "status": "illustrative", "enabled": false, "species": "downstream ROS network", "environment": "unspecified compartment", "temperature": null, "pH": null, "source": null, "limitations": "Disabled sensitivity-only observation duration."},
+      "k_spont_m_inv_s": {"value": 200000.0, "unit": "M^-1 s^-1", "status": "surrogate", "enabled": false, "species": "HO2/O2-", "environment": "water near pH 7.4", "temperature": "approximately 298 K", "pH": 7.4, "source": "Bielski et al. (1985), doi:10.1063/1.555739", "limitations": "Disabled effective coefficient; evidence-backed calculations use species-resolved measured rates and explicit acid-base speciation."},
+      "k_sod_m_inv_s": {"value": 2000000000.0, "unit": "M^-1 s^-1", "status": "surrogate", "enabled": false, "species": "bovine erythrocyte CuZnSOD and superoxide", "environment": "aqueous buffer", "temperature": null, "pH": "7.8-8.5", "source": "H. J. Forman and I. Fridovich, Archives of Biochemistry and Biophysics 158(1), 396-400 (1973), doi:10.1016/0003-9861(73)90636-X", "limitations": "Disabled outside the measured enzyme and conditions; not approved as a universal biological surrogate."},
+      "sod_m": {"value": 0.0, "unit": "M", "status": "assumed", "enabled": false, "species": "superoxide dismutase", "environment": "unspecified compartment", "temperature": null, "pH": null, "source": null, "limitations": "Disabled illustrative concentration. Zero is a scenario choice, not evidence for absence of SOD."},
+      "k_h2o2_loss_s": {"value": 0.0, "unit": "s^-1", "status": "unavailable", "enabled": false, "species": "hydrogen peroxide", "environment": "unspecified biological compartment", "temperature": null, "pH": null, "source": null, "limitations": "Disabled because compartment-specific catalase, peroxidase, and transport loss is unavailable; zero is not evidence of no loss."},
+      "samples": {"value": 201, "unit": "count", "status": "assumed", "enabled": false, "species": "downstream ROS numerical integration", "environment": "numerical", "temperature": null, "pH": null, "source": null, "limitations": "Disabled numerical sensitivity setting; convergence must be checked."}
     }
   },
   "measured_parameters": {
-    "doxorubicin_semiquinone_g_isotropic": {"value": 2.0033, "unit": "dimensionless", "environment": "water", "source_doi": "10.1016/0891-5849(90)90027-G"},
-    "doxorubicin_semiquinone_plus_oxygen": {"value": 4.4e7, "unit": "M^-1 s^-1", "environment": "aqueous pulse radiolysis", "source_doi": "10.1016/0003-9861(81)90263-0", "code_note": "bulk bimolecular value; do not substitute for k_doublet_s"},
-    "superoxide_spontaneous_effective_ph74": {"value": 2e5, "unit": "M^-1 s^-1", "status": "recommended aqueous reference value", "source_doi": "10.1063/1.555739"},
-    "cuzn_sod_superoxide": {"value": 2e9, "unit": "M^-1 s^-1", "environment": "bovine erythrocyte enzyme, pH 7.8-8.5", "source_doi": "10.1016/0003-9861(73)90636-X"}
+    "doxorubicin_semiquinone_g_isotropic": {"value": 2.0035, "unit": "dimensionless", "status": "measured", "species": "doxorubicin semiquinone", "environment": "N2-purged 100 mM phosphate with xanthine/xanthine oxidase", "temperature": null, "pH": 7.5, "source": "Kalyanaraman et al. (1991), doi:10.1016/0003-9861(91)90023-C", "limitations": "Isotropic one-line signal; not an oxygen g value, tensor, or encounter-specific measurement."},
+    "doxorubicin_semiquinone_plus_oxygen_1981": {"value": 4.4e7, "unit": "M^-1 s^-1", "status": "measured", "species": "adriamycin semiquinone plus O2", "environment": "aqueous pulse radiolysis", "temperature": null, "pH": null, "source": "B. A. Svingen and G. Powis, Archives of Biochemistry and Biophysics 209(1), 119-126 (1981), doi:10.1016/0003-9861(81)90263-0", "limitations": "Bulk bimolecular validation datum only; never an encounter-level first-order rate in s^-1."},
+    "superoxide_spontaneous_effective_ph74": {"value": 2e5, "unit": "M^-1 s^-1", "status": "surrogate", "species": "HO2/O2-", "environment": "water", "temperature": "approximately 298 K", "pH": 7.4, "source": "Bielski et al. (1985), doi:10.1063/1.555739", "limitations": "Condition-dependent downstream reference."},
+    "cuzn_sod_superoxide": {"value": 2e9, "unit": "M^-1 s^-1", "status": "measured", "species": "bovine erythrocyte CuZnSOD and superoxide", "environment": "aqueous buffer", "temperature": null, "pH": "7.8-8.5", "source": "H. J. Forman and I. Fridovich, Superoxide dismutase: A comparison of rate constants, Archives of Biochemistry and Biophysics 158(1), 396-400 (1973), doi:10.1016/0003-9861(73)90636-X", "limitations": "A surrogate outside the reported isoform and conditions."},
+    "doxorubicin_semiquinone_plus_oxygen_pH6": {"value": 3.5e8, "unit": "M^-1 s^-1", "uncertainty": 0.4e8, "status": "measured", "species": "adriamycin semiquinone plus neutral O2", "environment": "aqueous phosphate/formate; O2 or O2/N2 purged", "temperature": "room temperature", "pH": 6.0, "method": "electron pulse radiolysis/transient absorption", "source": "Land et al. (1985), doi:10.1038/bjc.1985.74", "limitations": "Total bulk rate; not spin-resolved and not an intracomplex first-order rate."},
+    "doxorubicin_semiquinone_plus_oxygen_pH11_5": {"value": 1.7e8, "unit": "M^-1 s^-1", "uncertainty": 0.2e8, "status": "measured", "species": "deprotonated adriamycin semiquinone plus neutral O2", "environment": "aqueous borate/OH-; O2 or O2/N2 purged", "temperature": "room temperature", "pH": 11.5, "method": "electron pulse radiolysis/transient absorption", "source": "Land et al. (1985), doi:10.1038/bjc.1985.74", "limitations": "Total bulk alkaline rate; not spin-resolved and not an intracomplex first-order rate."}
   },
-  "unavailable_exact_system_parameters": ["doxorubicin semiquinone hyperfine tensor", "encounter k_doublet_s", "k_quartet_s/k_doublet_s", "encounter escape rate", "T1", "T2", "exchange coupling", "dipolar coupling and geometry", "solution encounter O2 g and ZFS tensors", "H2O2 loss rate"],
-  "sensitivity_grid": {
-    "k_doublet_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0],
-    "k_quartet_over_k_doublet": [0.0, 0.01, 0.1, 1.0],
-    "k_escape_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0],
-    "relaxation_s": [0.0, 1000000.0, 100000000.0, 10000000000.0],
-    "label": "purely illustrative log grids, not chemically measured ranges"
-  }
+  "reference_evidence": {
+    "hyperfine": {
+      "exact_study": {"status": "primary_source_identified_numeric_extraction_unavailable", "species": "adriamycin and daunomycin semiquinones", "method": "EPR, ENDOR, TRIPLE resonance, partial deuteration", "source": "doi:10.1002/mrc.1260260812", "limitations": "Accessible abstract confirms resolved assignments were investigated but does not expose numerical constants, tensor components, signs, isotope map, solvent, temperature, pH, charge state, or uncertainty. No value is activated."},
+      "aqueous_linewidth_pH7_5": {"value": 3.25, "unit": "G peak-to-peak", "status": "measured", "species": "doxorubicin semiquinone; protonation not assigned", "environment": "N2-purged 100 mM phosphate; xanthine/xanthine oxidase", "temperature": null, "pH": 7.5, "method": "CW EPR", "uncertainty": null, "source": "doi:10.1016/0003-9861(91)90023-C", "limitations": "Unresolved hyperfine and other broadening; cannot uniquely convert to T2.", "enabled": false}
+    },
+    "oxygen": {
+      "gas": {"lambda_0_cm-1": 1.9847530, "gamma_0_cm-1": -0.00842930, "derived_D_cm-1": 3.969506, "status": "fitted_context_only", "species": "neutral gas-phase 16O2 X3Sigma_g- v=0", "source": "https://hitran.org/media/refs/HITRAN-1973.pdf", "limitations": "Gas rovibronic Hamiltonian and convention; not transferable to solution.", "enabled": false},
+      "matrix_solid_air": {"D_cm-1": 3.572, "uncertainty_cm-1": 0.003, "status": "measured_fitted_context_only", "species": "neutral O2 in solid air", "temperature": "5 K", "method": "94-550 GHz EPR", "source": "doi:10.1006/jmre.2000.2175", "limitations": "Frozen matrix only.", "enabled": false},
+      "matrix_nitrogen": {"D_cm-1": 3.497, "status": "measured_fitted_context_only", "species": "neutral O2 diluted in solid N2", "temperature": "15 K", "method": "HF-EPR", "source": "doi:10.1016/S0921-4526(00)00615-3", "limitations": "Temperature-dependent frozen matrix; signal vanishes above 25 K.", "enabled": false},
+      "bulk_solution": {"T1_s": 7.5e-12, "status": "indirectly_fitted_context_only", "species": "neutral dissolved O2", "environment": "water and multiple small-molecule solvents", "temperature": "room temperature", "pH": null, "method": "proton magnetic-relaxation dispersion", "uncertainty": null, "source": "doi:10.1006/jmre.2000.2219", "limitations": "Bulk-fluid relaxation scale, not direct time-domain T1 or encounter-specific tensor/relaxation.", "enabled": false},
+      "protein_cavity": {"K_association_M-1": 48, "K_uncertainty_M-1": 7, "tau_rot_ps": [0.164, 1.41], "tau_rot_uncertainty_ps": [0.006, 0.02], "status": "measured_and_MD_fitted_context_only", "species": "neutral O2 in T4 lysozyme L99A", "environment": "50 mM phosphate, 25 mM NaCl", "temperature": "298 K", "pH": 5.5, "source": "doi:10.1038/srep20534", "limitations": "Wrong protein/environment; demonstrates rapid orientational averaging, not a doxorubicin encounter Hamiltonian.", "enabled": false},
+      "membrane": {"status": "unavailable_for_O2_spin_hamiltonian", "limitations": "Located membrane studies quantify collisions through spin-label relaxation, not O2 g, D, E, or encounter-specific O2 relaxation.", "enabled": false},
+      "doxorubicin_semiquinone_encounter": {"status": "unavailable", "limitations": "No exact-system O2 g/D/E tensor or relaxation value found.", "enabled": false}
+    },
+    "encounter": {
+      "geometry_exchange_dipolar_association_separation_duration": {"status": "unavailable", "limitations": "No exact-system r, orientation, J, dipolar tensor, association/separation constants, or cage duration found.", "enabled": false},
+      "coherence": {"status": "not_investigated_in_retrieved_exact_system_studies_and_no_direct_source_found", "limitations": "No D/Q populations, transient polarization, quantum beats, CIDEP/CIDNP, or state-resolved field-dependent product branching.", "enabled": false},
+      "k_D": {"status": "unavailable", "enabled": false},
+      "k_Q": {"status": "unavailable", "enabled": false},
+      "k_Q_over_k_D": {"status": "unavailable", "physical_range_available": false, "limitations": "Only dimensionless illustrative benchmarks are retained in sensitivity_grid.", "enabled": false}
+    },
+    "downstream": {
+      "HO2_pKa": {"value": 4.88, "uncertainty": 0.10, "unit": "dimensionless", "status": "measured", "species": "HO2 radical/O2 radical anion", "environment": "oxygen-saturated aqueous formic acid/formate buffer", "temperature": null, "pH": "0-13 investigated", "method": "pulse radiolysis", "source": "doi:10.1021/j100711a009", "enabled": false},
+      "k_HO2_HO2": {"value": 0.76e6, "unit": "M^-1 s^-1", "status": "measured", "source": "doi:10.1021/j100711a009", "limitations": "Species-resolved aqueous elementary rate.", "enabled": false},
+      "k_HO2_O2minus": {"value": 8.5e7, "unit": "M^-1 s^-1", "status": "measured", "source": "doi:10.1021/j100711a009", "limitations": "Requires explicit acid-base speciation.", "enabled": false},
+      "k_O2minus_O2minus": {"value": null, "upper_bound": 100, "unit": "M^-1 s^-1", "status": "measured_upper_bound", "source": "doi:10.1021/j100711a009", "limitations": "Not the common effective neutral-pH dismutation coefficient; later reevaluation reports a tighter upper limit.", "enabled": false},
+      "k_CuZnSOD_overall": {"value": 2.37e9, "uncertainty": 0.18e9, "unit": "M^-1 s^-1", "status": "measured", "species": "native bovine CuZnSOD plus superoxide", "environment": "aqueous", "temperature": "298 K", "pH": null, "method": "pulse radiolysis plus optical/EPR", "source": "doi:10.1042/bj1390049", "limitations": "Not a universal human SOD1/SOD2 rate.", "enabled": false}
+    }
+  },
+  "validation_datasets": {
+    "beef_heart_submitochondrial_superoxide": {"control": 1.6, "doxorubicin": 69.6, "uncertainty_SE": [0.2, 2.7], "unit": "nmol min^-1 mg^-1", "dose": "90 uM doxorubicin", "method": "SOD-inhibitable cytochrome-c reduction", "temperature": null, "pH": null, "oxygen": "not reported in accessible abstract", "source": "doi:10.1016/S0021-9258(17)35747-2", "suitability": "quantitative only for matched preparation", "enabled": false},
+    "beef_heart_submitochondrial_H2O2": {"control": "undetectable", "doxorubicin": 2.2, "uncertainty_SE": 0.3, "unit": "nmol min^-1 mg^-1", "dose": "200 uM doxorubicin", "method": "catalase-released oxygen", "temperature": null, "pH": null, "oxygen": "not reported in accessible abstract", "source": "doi:10.1016/S0021-9258(17)35747-2", "limitations": "Detection limit and exact conditions not reported in accessible abstract.", "enabled": false},
+    "Ehrlich_microsome_superoxide": {"control": 0.51, "doxorubicin": 14.71, "uncertainty_SE": [0.26, 1.43], "n": [3, 6], "unit": "nmol min^-1 mg^-1", "dose": "135 uM", "environment": "200 ug microsomal protein in 1 mL; 150 mM potassium phosphate; 100 uM EDTA; 1 mM NADPH", "temperature": "310 K", "pH": 7.4, "oxygen": "not separately reported", "method": "SOD-inhibitable acetylated cytochrome-c reduction", "source": "doi:10.1155/2019/9474823", "enabled": false},
+    "Ehrlich_mitochondrial_superoxide": {"control": 1.12, "doxorubicin": 7.29, "uncertainty_SE": [0.15, 0.61], "n": [7, 10], "unit": "nmol min^-1 mg^-1", "dose": "135 uM", "environment": "100 ug protein/mL; 250 mM sucrose; 20 mM HEPES; 100 uM EDTA; NADH; 4 uM rotenone; 5 min preincubation", "temperature": "310 K", "pH": 8.2, "oxygen": "not separately reported", "method": "SOD-inhibitable acetylated cytochrome-c reduction", "source": "doi:10.1155/2019/9474823", "enabled": false},
+    "PC3_intracellular_H2O2": {"basal": 13, "doxorubicin": 51, "uncertainty": [4, 13], "unit": "pM apparent intracellular H2O2", "dose": "1 uM doxorubicin", "preparation": "PC3 human prostate cancer cells", "time": "30 min", "temperature": "310 K", "pH": null, "oxygen": "not reported", "method": "catalase-aminotriazole kinetic assay", "source": "doi:10.1016/j.abb.2005.06.015", "limitations": "Medium Amplex Red did not increase; catalase overexpression did not increase resistance.", "enabled": false}
+  },
+  "unavailable_exact_system_parameters": ["accessible numerical doxorubicin semiquinone hyperfine tensor", "encounter k_doublet_s", "encounter k_quartet_s", "physical k_quartet_s/k_doublet_s range", "encounter escape rate", "encounter duration", "semiquinone T1", "semiquinone T2/Tm", "exchange coupling", "dipolar coupling and geometry", "solution encounter O2 g and ZFS tensors", "encounter-specific O2 relaxation", "compartment-specific H2O2 loss rate"],
+  "sensitivity_scenarios": {
+    "baseline_no_optional_interactions": {
+      "description": "Illustrative field, encounter reaction, and escape benchmark with unavailable optional interactions omitted.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {}
+    },
+    "exchange_probe": {
+      "description": "Algebraic isotropic-exchange benchmark; 1e7 rad s^-1 is illustrative, not an estimate.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {"exchange_rad_s": 10000000.0}
+    },
+    "dipolar_probe": {
+      "description": "Algebraic anisotropic dipolar benchmark; magnitude and axis are illustrative, not geometry evidence.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "dipolar_axis", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {"dipolar_rad_s": 10000000.0}
+    },
+    "oxygen_zfs_probe": {
+      "description": "Algebraic solution-encounter O2 ZFS benchmark; values are illustrative and not transferred from gas or matrix data.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {"oxygen_zfs_d_rad_s": 10000000.0, "oxygen_zfs_e_rad_s": 2000000.0}
+    },
+    "hyperfine_mixing_probe": {
+      "description": "Deliberately illustrative local-field benchmark for D/Q mixing; not a doxorubicin hyperfine tensor.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {"effective_hyperfine_rad_s": [4000000.0, 0.0, 0.0]}
+    },
+    "relaxation_probe": {
+      "description": "Illustrative equal relaxation-rate benchmark; values are not T1 or T2 measurements.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {"radical_relaxation_s": 10000000.0, "oxygen_relaxation_s": 10000000.0}
+    },
+    "full_pipeline_with_loss_probe": {
+      "description": "Illustrative end-to-end classical preparation/association, encounter, dismutation, SOD, and H2O2-loss probe.",
+      "non_predictive": true,
+      "duration_s": 1e-6,
+      "use_config_values": ["field_t", "g_oxygen", "k_doublet_s", "k_quartet_s", "k_escape_s"],
+      "encounter_overrides": {},
+      "pipeline_inputs": {
+        "quinone_m": 1e-6,
+        "oxygen_m": 2e-4,
+        "semiquinone_formation_fraction": 0.5,
+        "encounter_association_fraction": 0.25,
+        "downstream_duration_s": 0.01,
+        "pH": 7.4,
+        "sod_m": 1e-7,
+        "k_h2o2_loss_s": 1000.0,
+        "samples": 501,
+        "limitations": "Every concentration, fraction, duration, and H2O2-loss value in this block is illustrative; none is a fitted or measured exact-system input."
+      }
+    }
+  },
+  "sensitivity_grid": {"k_doublet_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0], "k_quartet_over_k_doublet": [0.0, 0.01, 0.1, 1.0], "k_escape_s": [1000000.0, 10000000.0, 100000000.0, 1000000000.0], "relaxation_s": [0.0, 1000000.0, 100000000.0, 10000000000.0], "label": "purely illustrative log grids, not chemically measured ranges"}
 }

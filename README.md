@@ -1,24 +1,79 @@
-# ROS_Spin: doxorubicin semiquinone–oxygen spin chemistry
+# ROS_Spin: evidence-gated doxorubicin semiquinone–oxygen chemistry
 
-The active model represents doxorubicin semiquinone (spin 1/2) interacting
-with ground-state triplet oxygen (spin 1). It uses a six-state density matrix,
-doublet/quartet projectors, coherent evolution, relaxation, spin-selective
-electron transfer, encounter escape, and separate superoxide-to-H2O2 kinetics.
+The scientific refactor separates the following stages:
 
-The parameter review is in
-[`references/doxorubicin_parameter_review.md`](references/doxorubicin_parameter_review.md).
-The default configuration is explicitly illustrative because several
-exact-system parameters are unavailable; it must not be treated as a
-quantitative biological prediction.
+1. classical semiquinone formation;
+2. classical encounter association;
+3. coherent doublet/quartet spin evolution in the complete 2×3 electronic space;
+4. spin-selective electron transfer and encounter escape;
+5. 1:1 primary superoxide formation from reacted encounters;
+6. species-resolved spontaneous and SOD-mediated dismutation; and
+7. compartment-dependent H2O2 loss.
 
-Run the three initial-state benchmarks with:
+Semiquinone formation and association are never forced into the density matrix.
+The exact six-state classical density-matrix propagation uses a constant-system
+matrix exponential and remains the reference implementation. Parameter authority is limited to
+[`references/doxorubicin_parameter_review.md`](references/doxorubicin_parameter_review.md),
+[`configs/doxorubicin_parameters.json`](configs/doxorubicin_parameters.json), and
+[`configs/parameter_provenance.csv`](configs/parameter_provenance.csv).
+
+## Execution modes
+
+`evidence_backed` is the default. It can evaluate a measured bulk law
+`r = k_bulk[SQ][O2]` when concentrations are supplied, but it refuses an
+encounter-level yield because `k_D`, `k_Q`, escape/association, duration, and a
+prepared D/Q state are unavailable. Bulk `M^-1 s^-1` constants are never
+converted into encounter `s^-1` constants.
 
 ```bash
-python ROS.py --scenario unpolarized --validate-circuit
-python ROS.py --scenario doublet
-python ROS.py --scenario quartet
-python -m unittest discover -s tests -v
+python3 ROS.py
+python3 ROS.py --bulk-sq-m 1e-6 --bulk-o2-m 2e-4 \
+  --bulk-rate-key doxorubicin_semiquinone_plus_oxygen_pH6
 ```
+
+`sensitivity` requires both an explicit opt-in and a named scenario. Every
+result is labelled `NON-PREDICTIVE SENSITIVITY OUTPUT`.
+
+```bash
+python3 ROS.py --mode sensitivity \
+  --sensitivity-scenario baseline_no_optional_interactions \
+  --allow-sensitivity --initial-state unpolarized
+python3 ROS.py --mode sensitivity \
+  --sensitivity-scenario hyperfine_mixing_probe \
+  --allow-sensitivity --initial-state doublet --check-unitary-embedding
+```
+
+Unavailable interactions remain implemented and disabled in the evidence-backed
+profile. Their zero-valued placeholders are algebraic omissions, never physical
+evidence of zero. Named sensitivity scenarios may override them with explicitly
+illustrative values.
+
+## Equations and validation scope
+
+The encounter Hamiltonian is
+
+`H/ℏ = βe B·(gSQ s + gO2 S) + J s·S + s·Ddip·S + S·DO2·S + Ahf·s`,
+
+with `PD = (0.5 I - s·S)/1.5`, `PQ = (s·S + I)/1.5`, and
+
+`dρ/dt = -i[H/ℏ,ρ] - {kD PD + kQ PQ + kesc I,ρ}/2 + Lrelax(ρ)`.
+
+Reaction and escape yields are integrated from `kD Tr(PDρ)`, `kQ Tr(PQρ)`,
+and `kesc Tr(ρ)`. Downstream chemistry consumes two HO2/O2- radical equivalents
+per H2O2 and treats spontaneous, SOD-mediated, and H2O2-loss terms separately.
+
+Run the full tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+The local Qiskit installation cannot load on this machine because its native
+extension has the wrong architecture. Therefore the repository accurately
+retains only a 6×6-to-8×8 unitary-embedding consistency check. It is not an
+independently implemented three-qubit circuit and covers only closed coherent
+Hamiltonian evolution—not Lindblad relaxation, reaction, escape, upstream
+preparation/association, or downstream chemistry.
 
 ## Legacy data
 
