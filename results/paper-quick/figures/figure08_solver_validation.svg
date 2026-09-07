@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-09-07T13:45:00.271646</dc:date>
+    <dc:date>2026-09-07T15:23:42.858108</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -2746,6 +2746,19 @@ L 742.472841 245.974
 " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="legend_2">
+    <g id="patch_8">
+     <path d="M 659.861591 241.974 
+L 736.872841 241.974 
+Q 738.472841 241.974 738.472841 240.374 
+L 738.472841 205.9465 
+Q 738.472841 204.3465 736.872841 204.3465 
+L 659.861591 204.3465 
+Q 658.261591 204.3465 658.261591 205.9465 
+L 658.261591 240.374 
+Q 658.261591 241.974 659.861591 241.974 
+z
+" style="fill: #ffffff"/>
+    </g>
     <g id="line2d_222">
      <path d="M 661.461591 210.82525 
 L 669.461591 210.82525 
@@ -2906,7 +2919,7 @@ z
    </g>
   </g>
   <g id="axes_3">
-   <g id="patch_8">
+   <g id="patch_9">
     <path d="M 49.52 497.968 
 L 369.332841 497.968 
 L 369.332841 259.194 
@@ -4207,12 +4220,12 @@ L 354.795894 379.242488
 L 369.332841 270.047364 
 " clip-path="url(#p42e59ce32a)" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #d55e00; stroke-width: 1.5"/>
    </g>
-   <g id="patch_9">
+   <g id="patch_10">
     <path d="M 49.52 497.968 
 L 49.52 259.194 
 " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
-   <g id="patch_10">
+   <g id="patch_11">
     <path d="M 49.52 497.968 
 L 369.332841 497.968 
 " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
@@ -4297,7 +4310,7 @@ z
    </g>
   </g>
   <g id="axes_4">
-   <g id="patch_11">
+   <g id="patch_12">
     <path d="M 422.66 497.968 
 L 742.472841 497.968 
 L 742.472841 259.194 
@@ -4814,12 +4827,12 @@ L 727.935894 445.042652
 L 742.472841 270.047364 
 " clip-path="url(#p87b701d894)" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #d55e00; stroke-width: 1.5"/>
    </g>
-   <g id="patch_12">
+   <g id="patch_13">
     <path d="M 422.66 497.968 
 L 422.66 259.194 
 " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
-   <g id="patch_13">
+   <g id="patch_14">
     <path d="M 422.66 497.968 
 L 742.472841 497.968 
 " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
