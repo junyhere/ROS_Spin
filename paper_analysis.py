@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -51,6 +51,7 @@ from sensitivity_analysis import (
 from spin_chemistry import (
     EncounterParameters,
     P_DOUBLET,
+    P_QUARTET,
     REACTION_SQ_O2_ET,
     downstream_ros_species_resolved,
     execute_three_qubit_unitary_circuit,
@@ -121,10 +122,14 @@ def _git(command: list[str]) -> str:
 
 def _source_metadata(config: Path, provenance: Path) -> dict[str, Any]:
     source_files = [
+        ROOT / "README.md",
+        ROOT / "ROS.py",
         ROOT / "spin_chemistry.py",
         ROOT / "sensitivity_analysis.py",
         ROOT / "plotting.py",
         Path(__file__),
+        ROOT / "tests" / "test_spin_chemistry.py",
+        ROOT / "tests" / "test_paper_pipeline.py",
         config,
         provenance,
         ROOT / "references" / "doxorubicin_parameter_review.md",
@@ -139,6 +144,11 @@ def _source_metadata(config: Path, provenance: Path) -> dict[str, Any]:
         qiskit_version = qiskit.__version__
     except Exception as error:
         qiskit_version = f"unavailable: {error}"
+    try:
+        import scipy
+        scipy_version = scipy.__version__
+    except Exception as error:
+        scipy_version = f"unavailable: {error}"
     return {
         "git_commit": _git(["rev-parse", "HEAD"]),
         "git_branch": _git(["rev-parse", "--abbrev-ref", "HEAD"]),
@@ -154,9 +164,15 @@ def _source_metadata(config: Path, provenance: Path) -> dict[str, Any]:
         "python_version": platform.python_version(),
         "python_implementation": platform.python_implementation(),
         "platform": platform.platform(),
+        "operating_system": platform.system(),
+        "architecture": platform.machine(),
         "numpy_version": np.__version__,
         "matplotlib_version": matplotlib.__version__,
+        "scipy_version": scipy_version,
         "qiskit_version": qiskit_version,
+        "source_hashes_sha256": {
+            _identity(path): _sha256(path) for path in source_files
+        },
     }
 
 
@@ -240,7 +256,10 @@ def _prepare_output(output: Path, overwrite: bool) -> dict[str, Path]:
                 f"output directory is not empty: {output}; use --overwrite or choose a new directory"
             )
         shutil.rmtree(output)
-    directories = {name: output / name for name in ("data", "figures", "tables", "metadata")}
+    directories = {
+        name: output / name
+        for name in ("data", "figures", "tables", "captions", "metadata")
+    }
     output.mkdir(parents=True, exist_ok=True)
     for directory in directories.values():
         directory.mkdir()
@@ -257,6 +276,25 @@ def _model_overview_rows() -> list[dict]:
         {"order": 6, "stage": "downstream", "label": "Primary\nsuperoxide", "scientific_role": "one radical equivalent per reacted encounter", "evidence_status": "stoichiometric mapping", "limitation": "per-encounter yield is not concentration"},
         {"order": 7, "stage": "downstream", "label": "Spontaneous/SOD\ndismutation", "scientific_role": "two radicals per H2O2", "evidence_status": "condition-specific aqueous constants", "limitation": "fixed pH and constant SOD"},
         {"order": 8, "stage": "downstream", "label": "H2O2\nformation/loss", "scientific_role": "separate downstream product and sink", "evidence_status": "bounded kinetic model", "limitation": "loss is illustrative and compartment-specific"},
+    ]
+
+
+def _model_comparison_rows() -> list[dict]:
+    """Structured source for Table 1; no result values are typed into Word."""
+    return [
+        {"model_element": "Physical species", "original_implementation": "Generic two-spin or semiconductor shuttling model", "corrected_implementation": "Doxorubicin/adriamycin semiquinone with S=1/2 and ground-state O2 with S=1", "scientific_consequence": "The chemistry is tied to the stated redox pair."},
+        {"model_element": "Spin dimensions", "original_implementation": "Two qubits; dimension 4", "corrected_implementation": "Spin-1/2 x spin-1 electronic space; dimension 6", "scientific_consequence": "All physical electronic states are retained."},
+        {"model_element": "Manifold classification", "original_implementation": "Singlet/triplet or basis-parity labels", "corrected_implementation": "Doublet (dimension 2) and quartet (dimension 4) projectors", "scientific_consequence": "Projectors follow angular-momentum addition."},
+        {"model_element": "Initial states", "original_implementation": "Bell states or computational-basis preparations", "corrected_implementation": "I6/6, PD/2, PQ/4, and bounded pD mixtures", "scientific_consequence": "All cases are computational benchmarks; no chemical preparation is asserted."},
+        {"model_element": "Hamiltonian", "original_implementation": "Repeated CZ or identity gates used as chemical dynamics", "corrected_implementation": "Zeeman, exchange, dipolar, O2 ZFS, and local-field terms in the six-state space", "scientific_consequence": "Unavailable interactions remain disabled or sensitivity-only."},
+        {"model_element": "Relaxation", "original_implementation": "Semiconductor dephasing parameters", "corrected_implementation": "Local isotropic Lindblad sensitivity model with exact-system rates unavailable", "scientific_consequence": "No semiconductor relaxation parameter enters active chemistry."},
+        {"model_element": "Electron transfer", "original_implementation": "Mapped from state counts or parity", "corrected_implementation": "Integrated kD Tr(PD rho) and kQ Tr(PQ rho) loss fluxes", "scientific_consequence": "Reaction yield is a time-integrated kinetic quantity."},
+        {"model_element": "Encounter escape", "original_implementation": "Absent or not separated from circuit depth", "corrected_implementation": "Independent first-order escape channel kescape Tr(rho)", "scientific_consequence": "Reaction, escape, and unresolved survival close the probability balance."},
+        {"model_element": "Primary superoxide", "original_implementation": "Assigned from singlet/triplet or basis outcomes", "corrected_implementation": "YD + YQ from integrated electron-transfer flux", "scientific_consequence": "One primary radical equivalent is assigned per reacted encounter."},
+        {"model_element": "Hydrogen peroxide", "original_implementation": "Mapped directly from a spin population", "corrected_implementation": "Separate HO2/O2-minus speciation and dismutation with two radicals per H2O2", "scientific_consequence": "Spin populations are not treated as H2O2."},
+        {"model_element": "Rate units", "original_implementation": "Bulk and encounter rates could be conflated", "corrected_implementation": "Bulk M^-1 s^-1 constants remain separate from encounter s^-1 rates", "scientific_consequence": "No unsupported dimensional conversion is made."},
+        {"model_element": "Quantum-circuit role", "original_implementation": "Circuit outcomes interpreted as chemistry", "corrected_implementation": "Three-qubit coherent embedding consistency check", "scientific_consequence": "The circuit does not validate open-system chemistry or quantum advantage."},
+        {"model_element": "Interpretation", "original_implementation": "Risk of direct biological or cardiotoxicity extrapolation", "corrected_implementation": "Conditional dimensionless sensitivity analysis with evidence-gated inputs", "scientific_consequence": "Cellular ROS and clinical outcomes remain outside scope."},
     ]
 
 
@@ -321,26 +359,100 @@ def _benchmark_data(reference_rate: float, samples: int) -> tuple[list[dict], li
 
 
 def _controls(reference_rate: float) -> list[dict]:
-    common_field = reference_rate / (8.79410005e10 * 2.0)
     definitions = [
-        ("zero_mixing", "Zero mixing", EncounterParameters(k_doublet_s=reference_rate, k_quartet_s=.1*reference_rate, k_escape_s=reference_rate), "No coherent D/Q mixing term"),
-        ("isotropic_exchange_only", "Isotropic exchange only", EncounterParameters(exchange_rad_s=2*reference_rate, k_doublet_s=reference_rate, k_quartet_s=.1*reference_rate, k_escape_s=reference_rate), "Isotropic exchange commutes with PD"),
-        ("common_zeeman_only", "Common Zeeman only", EncounterParameters(field_t=(0,0,common_field), g_radical=2.0, g_oxygen=2.0, k_doublet_s=reference_rate, k_quartet_s=.1*reference_rate, k_escape_s=reference_rate), "Common Zeeman is a total-spin generator"),
-        ("spin_independent_reaction", "Spin-independent reaction", EncounterParameters(local_field_proxy_rad_s=(reference_rate,0,0), k_doublet_s=reference_rate, k_quartet_s=reference_rate, k_escape_s=reference_rate), "kQ=kD null; mixing cannot change total reaction probability"),
-        ("fast_relaxation", "Fast relaxation", EncounterParameters(local_field_proxy_rad_s=(reference_rate,0,0), radical_relaxation_s=100*reference_rate, oxygen_relaxation_s=100*reference_rate, k_doublet_s=reference_rate, k_quartet_s=.1*reference_rate, k_escape_s=reference_rate), "Illustrative local isotropic depolarization"),
-        ("escape_only", "Escape only", EncounterParameters(k_escape_s=reference_rate), "Analytic survival exp(-kesc t); no reaction"),
-        ("reaction_only", "Reaction only (kD=kQ)", EncounterParameters(k_doublet_s=reference_rate, k_quartet_s=reference_rate), "Analytic reaction 1-exp(-kD t); no escape"),
+        (
+            "baseline_sensitivity", "Baseline sensitivity",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "Illustrative reference case; no parameter is an exact-system estimate",
+            "unpolarized", None,
+        ),
+        (
+            "zero_mixing", "Zero mixing",
+            EncounterParameters(
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "No coherent D/Q mixing term", "unpolarized", None,
+        ),
+        (
+            "spin_independent_reaction", "Spin-independent reaction",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "kQ=kD null; mixing cannot change total reaction probability",
+            "unpolarized", None,
+        ),
+        (
+            "fast_relaxation", "Fast relaxation",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=100 * reference_rate,
+                oxygen_relaxation_s=100 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "Illustrative local isotropic depolarization", "unpolarized", None,
+        ),
+        (
+            "rapid_escape", "Rapid escape",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=100 * reference_rate,
+            ),
+            "Escape dominates before most modeled electron transfer", "unpolarized", None,
+        ),
+        (
+            "doublet_benchmark", "Doublet benchmark",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "Computational limiting benchmark; not a demonstrated prepared state",
+            "doublet", None,
+        ),
+        (
+            "quartet_benchmark", "Quartet benchmark",
+            EncounterParameters(
+                local_field_proxy_rad_s=(reference_rate, 0, 0),
+                radical_relaxation_s=.1 * reference_rate,
+                oxygen_relaxation_s=.1 * reference_rate,
+                k_doublet_s=reference_rate, k_quartet_s=.1 * reference_rate,
+                k_escape_s=reference_rate,
+            ),
+            "Computational limiting benchmark; not a demonstrated prepared state",
+            "quartet", None,
+        ),
     ]
     rows = []
-    for scenario_id, label, parameters, meaning in definitions:
-        result = propagate_encounter_reference(parameters, 8/reference_rate, "unpolarized", 2)
+    for scenario_id, label, parameters, meaning, state, p_doublet in definitions:
+        result = propagate_encounter_reference(
+            parameters, 8/reference_rate, state, 2, p_doublet
+        )
         matrix = hamiltonian(parameters)
         commutator = float(
             np.linalg.norm(matrix @ P_DOUBLET - P_DOUBLET @ matrix) / reference_rate
         )
         rows.append({
             "scenario_id": scenario_id, "control_label": label,
-            "initial_state": "unpolarized", "p_doublet_initial": result["p_doublet_initial"],
+            "initial_state": state, "p_doublet_initial": result["p_doublet_initial"],
             "reference_rate_s^-1": reference_rate, "duration_over_reference": 8.0,
             "duration_s": 8/reference_rate, "field_t": parameters.field_t,
             "g_radical": parameters.g_radical, "g_oxygen": parameters.g_oxygen,
@@ -528,14 +640,27 @@ def _downstream_data(authority: dict, samples: int) -> list[dict]:
     return rows
 
 
-def _bulk_rows(authority: dict) -> list[dict]:
+def _bulk_rows(authority: dict, provenance_path: Path) -> list[dict]:
+    with provenance_path.open(newline="", encoding="utf-8") as handle:
+        provenance_by_location = {
+            row["code_location"]: row for row in csv.DictReader(handle)
+        }
     rows = []
     for parameter_id, record in authority["parameter_records"].items():
         if record.get("reaction_id") != REACTION_SQ_O2_ET:
             continue
+        code_location = f"parameter_records.{parameter_id}"
+        provenance = provenance_by_location.get(code_location)
+        if provenance is None:
+            raise ValueError(f"bulk parameter lacks provenance row: {code_location}")
+        if provenance.get("unit") != record.get("unit"):
+            raise ValueError(f"bulk parameter/provenance unit mismatch: {parameter_id}")
         conditions = record.get("conditions", {})
         rows.append({
             "parameter_id": parameter_id, "reaction_id": record["reaction_id"],
+            "provenance_symbol": provenance["symbol"],
+            "provenance_code_location": provenance["code_location"],
+            "provenance_status": provenance["status"],
             "value_m^-1_s^-1": record["value"],
             "uncertainty_m^-1_s^-1": record.get("uncertainty") or 0,
             "pH": record.get("pH") if record.get("pH") is not None else "unknown",
@@ -544,7 +669,8 @@ def _bulk_rows(authority: dict) -> list[dict]:
             "species": record.get("species") or "unknown",
             "protonation": conditions.get("protonation") or "unknown",
             "oxygen_conditions": conditions.get("oxygen_conditions") or "unknown",
-            "method": record.get("method") or "unknown", "source": record.get("source"),
+            "method": record.get("method") or "unknown",
+            "source": provenance.get("source") or record.get("source"),
             "allowed_use": ";".join(record.get("allowed_uses", [])),
             "condition_matched_allowed": "condition_matched_prediction" in record.get("allowed_uses", []),
             "limitations": record.get("limitations"),
@@ -557,7 +683,7 @@ def _provenance_rows(path: Path) -> list[dict]:
     with path.open(newline="", encoding="utf-8") as handle:
         source = list(csv.DictReader(handle))
     fields = [
-        "symbol", "value_or_range", "unit", "species", "charge_state",
+        "symbol", "definition", "value_or_range", "unit", "species", "charge_state",
         "environment", "temperature", "pH", "method", "uncertainty", "source",
         "status", "limitations", "use_class", "code_location",
     ]
@@ -570,6 +696,8 @@ def _provenance_rows(path: Path) -> list[dict]:
 
 def _unavailable_rows(authority: dict) -> list[dict]:
     conclusions = {
+        "hyperfine": "Prohibits an exact-system hyperfine Hamiltonian or mixing rate.",
+        "association": "Prohibits a quantitative encounter-formation flux.",
         "k_doublet": "Prohibits a quantitative D-channel reaction yield.",
         "k_quartet": "Prohibits a quantitative Q-channel reaction yield.",
         "ratio": "Prohibits assigning a preferred manifold or physical selectivity range.",
@@ -582,22 +710,102 @@ def _unavailable_rows(authority: dict) -> list[dict]:
         "dipolar": "Prohibits a quantitative dipolar Hamiltonian and orientation average.",
         "geometry": "Prohibits a physical association or encounter model.",
         "o2": "Prohibits transfer of gas, matrix, or protein O2 tensors into solution.",
+        "o2_relaxation": "Prohibits assigning a solution-encounter O2 relaxation rate.",
         "loss": "Prohibits compartment-level H2O2 prediction.",
     }
     rows = []
     for item in authority["unavailable_exact_system_parameters"]:
         text = item.lower()
-        key = next((candidate for candidate in conclusions if candidate in text), "geometry")
+        # Classify specific phrases before short substrings: for example,
+        # "duration" contains "ratio" and "H2O2 loss" contains "O2".
+        if "hyperfine" in text:
+            key = "hyperfine"
+        elif "association" in text:
+            key = "association"
+        elif "physical k_quartet_s/k_doublet_s" in text:
+            key = "ratio"
+        elif "k_doublet" in text:
+            key = "k_doublet"
+        elif "k_quartet" in text:
+            key = "k_quartet"
+        elif "escape" in text:
+            key = "escape"
+        elif "duration" in text:
+            key = "duration"
+        elif "h2o2 loss" in text or "compartment-specific" in text:
+            key = "loss"
+        elif "semiquinone t1" in text:
+            key = "t1"
+        elif "semiquinone t2" in text or "semiquinone tm" in text:
+            key = "t2"
+        elif "exchange" in text:
+            key = "exchange"
+        elif "dipolar" in text:
+            key = "dipolar"
+        elif "o2 relaxation" in text:
+            key = "o2_relaxation"
+        elif "o2" in text or "zfs" in text:
+            key = "o2"
+        else:
+            key = "geometry"
+        why_needed = {
+            "hyperfine": "Defines nuclear-spin-driven electron-spin mixing in the exact radical.",
+            "association": "Connects bulk semiquinone and oxygen concentrations to encounter formation.",
+            "k_doublet": "Sets doublet-resolved electron-transfer flux.",
+            "k_quartet": "Sets quartet-resolved electron-transfer flux.",
+            "ratio": "Determines reaction selectivity between the two manifolds.",
+            "escape": "Sets competition between reaction and encounter separation.",
+            "duration": "Sets a physical observation endpoint or residence time.",
+            "preparation": "Defines the encounter birth density matrix.",
+            "t1": "Defines longitudinal relaxation within the encounter.",
+            "t2": "Defines coherence decay under a physically matched model.",
+            "exchange": "Sets the isotropic electron-electron coupling magnitude.",
+            "dipolar": "Sets anisotropic coupling and requires geometry/orientation.",
+            "geometry": "Defines separation, orientation, association, and residence physics.",
+            "o2": "Defines encounter-specific oxygen Zeeman/ZFS evolution.",
+            "o2_relaxation": "Defines spin relaxation of O2 within the solution encounter.",
+            "loss": "Defines compartment-specific removal of downstream H2O2.",
+        }
         rows.append({
             "missing_parameter": item,
+            "why_needed": why_needed[key],
             "status": "unavailable",
+            "sensitivity_coordinate_allowed": "yes, with explicit opt-in",
+            "range_status": "illustrative only; no defensible physical range",
             "conclusion_prohibited": conclusions[key],
             "allowed_treatment": "bounded illustrative sensitivity coordinate only",
             "source_of_status": "configuration authority and targeted evidence review",
         })
+    explicit_additions = [
+        (
+            "encounter association rate",
+            "association",
+            "bounded illustrative sensitivity coordinate only",
+        ),
+        (
+            "encounter geometry separated from dipolar coupling",
+            "geometry",
+            "illustrative geometry scenarios only; none used in the baseline",
+        ),
+    ]
+    for name, key, treatment in explicit_additions:
+        if not any(row["missing_parameter"] == name for row in rows):
+            rows.append({
+                "missing_parameter": name,
+                "why_needed": why_needed[key],
+                "status": "unavailable",
+                "sensitivity_coordinate_allowed": "yes, with explicit opt-in",
+                "range_status": "illustrative only; no defensible physical range",
+                "conclusion_prohibited": conclusions[key],
+                "allowed_treatment": treatment,
+                "source_of_status": "references/doxorubicin_parameter_review.md",
+            })
     rows.append({
         "missing_parameter": "chemically prepared initial D/Q population",
+        "why_needed": "Defines the encounter birth density matrix.",
         "status": "unavailable",
+        "sensitivity_coordinate_allowed": "yes, as benchmark mixtures only",
+        "range_status": "illustrative only; no measured preparation distribution",
         "conclusion_prohibited": conclusions["preparation"],
         "allowed_treatment": "unpolarized and manifold-mixture benchmarks only",
         "source_of_status": "references/doxorubicin_parameter_review.md",
@@ -613,8 +821,24 @@ def _validation_dataset_rows(authority: dict) -> list[dict]:
     rows = []
     for dataset_id, record in authority["validation_datasets"].items():
         values = {key: value for key, value in record.items() if key not in reserved}
+        exact_system = record.get("preparation") or record.get("environment") or dataset_id
+        observable = dataset_id.split("_")[0].replace("h2o2", "H2O2").replace("superoxide", "superoxide")
+        conditions = "; ".join(
+            f"{label}={value}" for label, value in (
+                ("dose", record.get("dose")),
+                ("environment", record.get("environment") or record.get("preparation")),
+                ("temperature", record.get("temperature")),
+                ("pH", record.get("pH")),
+                ("oxygen", record.get("oxygen")),
+            ) if value not in (None, "")
+        )
         rows.append({
-            "dataset_id": dataset_id, "reported_values_and_uncertainties": values,
+            "dataset_id": dataset_id,
+            "exact_chemical_or_biological_system": exact_system,
+            "observable": observable,
+            "conditions": conditions or "not fully reported",
+            "reported_result": values,
+            "reported_values_and_uncertainties": values,
             "unit": record.get("unit"), "dose": record.get("dose"),
             "environment": record.get("environment") or record.get("preparation") or "not fully reported",
             "temperature": record.get("temperature") or "unknown",
@@ -622,6 +846,7 @@ def _validation_dataset_rows(authority: dict) -> list[dict]:
             "oxygen": record.get("oxygen") or "unknown", "method": record.get("method"),
             "source": record.get("source"),
             "suitability": record.get("suitability", "context/validation only; exact condition match required"),
+            "usable_for_direct_validation": "no" if not record.get("enabled") else "condition-specific only",
             "enabled_for_fit": record.get("enabled"),
             "limitations": record.get("limitations", "Conditions and normalization differ; do not pool or fit."),
         })
@@ -630,114 +855,174 @@ def _validation_dataset_rows(authority: dict) -> list[dict]:
 
 def _traceability_rows() -> list[dict]:
     topics = [
-        (1, "Semiquinone g/hyperfine", "provenance and six-state Hamiltonian", "Table 1; Figure 7", "bounded_complete", "isotropic g only; hyperfine unavailable"),
-        (2, "O2 electronic parameters", "provenance and disabled encounter tensors", "Tables 1-2", "evidence_review_complete", "encounter tensors unavailable"),
-        (3, "Spin relaxation", "phenomenological Lindblad sensitivity terms", "Figures 5,7,8", "framework_complete", "T1/T2 unavailable"),
-        (4, "Bulk SQ/O2 kinetics", "reaction-identity and exact-condition gate", "Figure 10; Table 1", "condition_specific_complete", "not encounter kD or kQ"),
-        (5, "Encounter coherence", "six-state density-matrix framework", "Figures 1-2", "evidence_unavailable", "no measured coherent encounter"),
-        (6, "D/Q reaction selectivity", "exact projectors and kQ/kD coordinate", "Figures 3,4,6", "sensitivity_complete", "no physical ordering known"),
-        (7, "Escape/encounter lifetime", "first-order escape coordinate", "Figures 4,7", "sensitivity_complete", "physical value unavailable"),
-        (8, "Exchange/dipolar/geometry", "Hamiltonian and controls", "Figure 7; Table 2", "framework_complete", "magnitudes and geometry unavailable"),
-        (9, "Downstream speciation/dismutation", "species-resolved pulse kinetics", "Figure 9; Table 1", "bounded_complete", "fixed pH and constant SOD"),
-        (10, "Experimental ROS validation", "inactive authority datasets", "Table 7", "catalog_complete", "datasets incomparable for fitting"),
-        (11, "Independent numerical behavior", "matrix exponential versus Dormand-Prince", "Figure 8; Table 5", "complete", "numerical, not physical validation"),
-        (12, "Circuit consistency", "three-qubit dense-unitary embedding", "Figure 11; Table 6", "conditional_complete", "coherent simulator/embedding only"),
+        (1, "Semiquinone g and hyperfine", "configs/doxorubicin_parameters.json; spin_chemistry.py", "hamiltonian; validate_authority_bundle", "Figure 7; Table 2", "InitialStateAndHamiltonianTests; AuthorityAndModeTests", "bounded_complete", "isotropic g only; hyperfine tensors unavailable"),
+        (2, "O2 electronic parameters", "configs/doxorubicin_parameters.json", "active_model.encounter.g_oxygen; oxygen_zfs_d_rad_s; oxygen_zfs_e_rad_s", "Tables 2-3", "AuthorityAndModeTests", "evidence_review_complete", "encounter tensors unavailable"),
+        (3, "Spin relaxation", "spin_chemistry.py", "_lindblad; propagate_encounter_reference; propagate_encounter_independent", "Figures 5, 7, 8", "EncounterDynamicsTests; IndependentEncounterValidationTests", "framework_complete", "T1 and T2 unavailable"),
+        (4, "Bulk SQ/O2 kinetics", "spin_chemistry.py; configs/parameter_provenance.csv", "evaluate_bulk_superoxide_rate", "Figure 10; Table 2", "AuthorityAndModeTests; PaperPipelineTests", "condition_specific_complete", "not encounter kD or kQ"),
+        (5, "Encounter coherence", "spin_chemistry.py", "hamiltonian; propagate_encounter_reference", "Figures 1-2", "EncounterDynamicsTests", "evidence_unavailable", "no measured coherent encounter"),
+        (6, "D/Q reaction selectivity", "spin_chemistry.py; sensitivity_analysis.py", "P_DOUBLET; P_QUARTET; run_selectivity_sweep", "Figures 3, 4, 6", "SpinAlgebraTests; PaperPipelineTests", "sensitivity_complete", "no physical ordering known"),
+        (7, "Escape and encounter lifetime", "spin_chemistry.py; sensitivity_analysis.py", "EncounterParameters.k_escape_s; run_mixing_escape_sweep", "Figures 4, 7; Table 5", "EncounterDynamicsTests", "sensitivity_complete", "physical value unavailable"),
+        (8, "Exchange dipolar and geometry", "spin_chemistry.py", "EncounterParameters; hamiltonian", "Figure 7; Table 3", "InitialStateAndHamiltonianTests", "framework_complete", "magnitudes and geometry unavailable"),
+        (9, "Downstream speciation and dismutation", "spin_chemistry.py", "downstream_ros_species_resolved", "Figure 9", "StagedChemistryTests", "bounded_complete", "fixed pH and constant SOD"),
+        (10, "Experimental ROS validation", "configs/doxorubicin_parameters.json", "validation_datasets", "Table 8", "AuthorityAndModeTests", "catalog_complete", "datasets incomparable for fitting"),
+        (11, "Independent numerical behavior", "spin_chemistry.py", "propagate_encounter_reference; propagate_encounter_independent", "Figure 8; Table 6", "IndependentEncounterValidationTests", "complete", "numerical, not physical validation"),
+        (12, "Circuit consistency", "spin_chemistry.py", "execute_three_qubit_unitary_circuit", "Figure 11; Table 7", "CoherentValidationTests", "conditional_complete", "coherent simulator and embedding only"),
     ]
     outputs = [
-        ("A", "parameter provenance", "Table 1"),
-        ("B", "Hamiltonian and spin algebra", "spin_chemistry.py; Figure 1"),
-        ("C", "initial-state benchmarks", "Figures 2-3; Table 3"),
-        ("D", "kQ/kD analysis", "Figures 4 and 6"),
-        ("E", "reaction network", "Figures 1 and 9"),
-        ("F", "supported claims", "paper-results summary"),
-        ("G", "unsupported claims", "README and limitations"),
-        ("H", "configuration JSON", "configs/doxorubicin_parameters.json"),
-        ("I", "machine-readable outputs", "data CSVs, table CSVs, manifest"),
-        ("J", "existing-repository and legacy mapping", "README Legacy section"),
+        ("A", "parameter provenance", "configs/parameter_provenance.csv", "_provenance_rows", "Table 2", "AuthorityAndModeTests"),
+        ("B", "Hamiltonian and spin algebra", "spin_chemistry.py", "hamiltonian; P_DOUBLET; P_QUARTET", "Figure 1; Table 1", "SpinAlgebraTests; InitialStateAndHamiltonianTests"),
+        ("C", "initial-state benchmarks", "spin_chemistry.py", "initial_density", "Figures 2-3; Table 4", "InitialStateAndHamiltonianTests"),
+        ("D", "kQ/kD analysis", "sensitivity_analysis.py", "run_mixing_escape_sweep; run_selectivity_sweep", "Figures 4 and 6", "PaperPipelineTests"),
+        ("E", "reaction network", "spin_chemistry.py", "primary_superoxide_formation; downstream_ros_species_resolved", "Figures 1 and 9", "StagedChemistryTests"),
+        ("F", "supported claims", "deliverables/ROS_Spin_professor_summary.md", "SUPPORTED_CLAIMS", "Professor summary", "test_professor_handoff.py"),
+        ("G", "unsupported claims", "deliverables/ROS_Spin_professor_summary.md", "PROHIBITED_CLAIMS", "Professor summary", "test_professor_handoff.py"),
+        ("H", "configuration JSON", "configs/doxorubicin_parameters.json", "validate_authority_bundle", "Table 2", "AuthorityAndModeTests"),
+        ("I", "machine-readable outputs", "paper_analysis.py", "write_csv; run_manifest.json", "Figures 1-11; Tables 1-9", "PaperPipelineTests"),
+        ("J", "existing repository and legacy mapping", "README.md; legacy_entrypoint.py", "retired_entrypoint", "Table 9", "PaperPipelineTests"),
     ]
     rows = [
         {
             "requirement_id": f"Topic {number}",
             "research_topic_or_output": description,
-            "evidence_or_implementation": implementation,
-            "tests_figures_tables": artifacts,
-            "completion_status": status,
-            "limitations": limitation,
+            "exact_file": exact_file,
+            "exact_code_object": code_object,
+            "figure_or_table": artifacts,
+            "test": test,
+            "evidence_status": status,
+            "remaining_limitation": limitation,
         }
-        for number, description, implementation, artifacts, status, limitation in topics
+        for number, description, exact_file, code_object, artifacts, test, status, limitation in topics
     ]
     rows.extend({
         "requirement_id": f"Output {letter}",
         "research_topic_or_output": description,
-        "evidence_or_implementation": artifact,
-        "tests_figures_tables": artifact,
-        "completion_status": "complete",
-        "limitations": "Interpret only within the stated evidence and sensitivity scope.",
-    } for letter, description, artifact in outputs)
+        "exact_file": exact_file,
+        "exact_code_object": code_object,
+        "figure_or_table": artifact,
+        "test": test,
+        "evidence_status": "complete",
+        "remaining_limitation": "Interpret only within the stated evidence and sensitivity scope.",
+    } for letter, description, exact_file, code_object, artifact, test in outputs)
     return rows
 
 
-def _circuit_rows(reference_rate: float, execute: bool) -> tuple[list[dict], dict[str, Any]]:
+def _circuit_rows(
+    reference_rate: float, execute: bool, seed: int
+) -> tuple[list[dict], dict[str, Any]]:
     capability = independent_circuit_capability()
-    if not execute:
-        record = {
-            "status": "not_executed",
-            "reason": "--execute-circuit was not requested",
-            "implementation_type": "optional Qiskit three-qubit dense 8x8 UnitaryGate",
-            "scope": "closed coherent simulator/embedding consistency only",
-        }
-        return [{"metric": "circuit_validation", "value": "", "tolerance": "", **record}], record
-    if not capability["available"]:
-        record = {
-            "status": "not_executed", "reason": capability["reason"],
-            "implementation_type": "Qiskit unavailable",
-            "scope": "closed coherent simulator/embedding consistency only",
-        }
-        return [{"metric": "circuit_validation", "value": "", "tolerance": "", **record}], record
     parameters = EncounterParameters(
         field_t=(0, 0, 1e-4), g_radical=2.0035, g_oxygen=2.0023,
         exchange_rad_s=2 * reference_rate, dipolar_rad_s=.1 * reference_rate,
         local_field_proxy_rad_s=(.3 * reference_rate, 0, 0),
     )
-    result = execute_three_qubit_unitary_circuit(
-        parameters, 1/reference_rate, seed=SEED
-    )
-    metrics = [
-        ("statevector_error", result["max_statevector_error"], TOLERANCES["circuit_statevector"]),
-        ("doublet_observable_error", result["doublet_observable_error"], TOLERANCES["circuit_observable"]),
-        ("quartet_observable_error", result["quartet_observable_error"], TOLERANCES["circuit_observable"]),
-        ("leakage_probability", result["physical_subspace_leakage_probability"], TOLERANCES["circuit_leakage"]),
-        ("basis_ordering_error", result["max_basis_ordering_error"], TOLERANCES["circuit_basis_ordering"]),
+    duration = 1 / reference_rate
+    physical = np.array([0, 1, 2, 4, 5, 6])
+    unused = np.array([3, 7])
+    energies, vectors = np.linalg.eigh(hamiltonian(parameters))
+    unitary6 = (vectors * np.exp(-1j * energies * duration)) @ vectors.conj().T
+    unitary8 = np.eye(8, dtype=complex)
+    unitary8[np.ix_(physical, physical)] = unitary6
+    rng = np.random.default_rng(seed)
+    state6 = rng.normal(size=6) + 1j * rng.normal(size=6)
+    state6 /= np.linalg.norm(state6)
+    state8 = np.zeros(8, dtype=complex)
+    state8[physical] = state6
+    expected6 = unitary6 @ state6
+    embedded8 = unitary8 @ state8
+    pd8 = np.zeros((8, 8), dtype=complex)
+    pq8 = np.zeros((8, 8), dtype=complex)
+    pd8[np.ix_(physical, physical)] = P_DOUBLET
+    pq8[np.ix_(physical, physical)] = P_QUARTET
+    expected8 = np.zeros(8, dtype=complex)
+    expected8[physical] = expected6
+
+    numpy_metrics = [
+        ("numpy_embedding_statevector_error", float(np.max(np.abs(embedded8[physical] - expected6))), TOLERANCES["circuit_statevector"]),
+        ("numpy_embedding_doublet_observable_error", float(abs(np.vdot(embedded8, pd8 @ embedded8) - np.vdot(expected8, pd8 @ expected8))), TOLERANCES["circuit_observable"]),
+        ("numpy_embedding_quartet_observable_error", float(abs(np.vdot(embedded8, pq8 @ embedded8) - np.vdot(expected8, pq8 @ expected8))), TOLERANCES["circuit_observable"]),
+        ("numpy_embedding_leakage_probability", float(np.sum(np.abs(embedded8[unused]) ** 2)), TOLERANCES["circuit_leakage"]),
     ]
+    qiskit_status = "not requested"
+    reason = "--execute-circuit was not requested"
+    implementation = "NumPy six-state unitary embedded in an 8-state array"
+    qiskit_metrics: list[tuple[str, float, float]] = []
+    qiskit_result: dict[str, Any] | None = None
+    if execute and capability["available"]:
+        qiskit_result = execute_three_qubit_unitary_circuit(
+            parameters, duration, seed=seed
+        )
+        qiskit_status = "executed"
+        reason = ""
+        implementation = qiskit_result["gate_implementation"]
+        qiskit_metrics = [
+            ("qiskit_statevector_error", qiskit_result["max_statevector_error"], TOLERANCES["circuit_statevector"]),
+            ("qiskit_doublet_observable_error", qiskit_result["doublet_observable_error"], TOLERANCES["circuit_observable"]),
+            ("qiskit_quartet_observable_error", qiskit_result["quartet_observable_error"], TOLERANCES["circuit_observable"]),
+            ("qiskit_leakage_probability", qiskit_result["physical_subspace_leakage_probability"], TOLERANCES["circuit_leakage"]),
+            ("qiskit_basis_ordering_error", qiskit_result["max_basis_ordering_error"], TOLERANCES["circuit_basis_ordering"]),
+        ]
+    elif execute:
+        qiskit_status = "unavailable"
+        reason = str(capability["reason"])
+
+    status = "qiskit_executed" if qiskit_status == "executed" else "numpy_embedding_only"
+    scope = "closed coherent simulator and encoding consistency only"
     rows = [{
-        "metric": metric, "value": value, "tolerance": tolerance,
-        "passes": value <= tolerance, "status": "executed",
-        "implementation_type": result["gate_implementation"], "scope": result["scope"],
-        "reason": "", "qubits": result["qubits"], "basis_order": result["basis_order"],
-        "physical_indices": result["physical_indices"],
-        "does_not_validate": result["does_not_validate"],
-    } for metric, value, tolerance in metrics]
-    return rows, result
+        "metric": metric,
+        "validation_layer": "Qiskit" if metric.startswith("qiskit_") else "NumPy embedding",
+        "value": value,
+        "tolerance": tolerance,
+        "passes": value <= tolerance,
+        "status": status,
+        "qiskit_available": bool(capability["available"]),
+        "qiskit_execution_status": qiskit_status,
+        "implementation_type": implementation,
+        "scope": scope,
+        "reason": reason,
+        "seed": seed,
+        "qubits": 3,
+        "basis_order": ["000", "001", "010", "100", "101", "110"],
+        "physical_indices": physical.tolist(),
+        "unused_indices": unused.tolist(),
+        "does_not_validate": [
+            "independent Hamiltonian construction", "spin-selective reaction",
+            "escape", "Lindblad relaxation", "upstream or downstream chemistry",
+            "hardware performance", "quantum advantage",
+        ],
+    } for metric, value, tolerance in numpy_metrics + qiskit_metrics]
+    record = {
+        "status": status,
+        "qiskit_available": bool(capability["available"]),
+        "qiskit_execution_status": qiskit_status,
+        "reason": reason,
+        "implementation_type": implementation,
+        "scope": scope,
+        "all_metrics_pass": all(row["passes"] for row in rows),
+    }
+    if qiskit_result is not None:
+        record["qiskit_version_scope"] = qiskit_result["scope"]
+    return rows, record
 
 
 CAPTIONS = {
-    "figure01_model_overview": "Corrected staged model. Upstream semiquinone formation, the six-state semiquinone/O2 encounter, and downstream kinetics are separate. The diagram does not assert coherent preparation or a measured encounter.",
-    "figure02_benchmark_trajectories": "Surviving D/Q populations, total survival, cumulative D/Q reaction, escape, and primary-superoxide yields versus t kref for five benchmark mixtures. kD/kref=1, kQ/kD=0.1, kescape/kref=1, omega_local/kref=1, and gammaR/kref=gammaO/kref=0.1 are illustrative.",
-    "figure03_initial_state_comparison": "Final branching for five benchmark mixtures. The primary-superoxide marker is the sum of reaction yields, not final spin population.",
-    "figure04_mixing_escape_heatmaps": "Primary-superoxide yield per encounter over omega_local/kref and kescape/kref. Zero and logarithmic nonzero coordinates are illustrative. A common scale is used; kQ/kD=1 is the spin-independent reaction null.",
-    "figure05_mixing_relaxation_heatmaps": "Primary-superoxide yield over omega_local/kref and gammaR/kref=gammaO/kref for unpolarized, D-manifold, and Q-manifold mixtures. Rates are illustrative, not measured ranges.",
-    "figure06_reaction_selectivity": "Primary-superoxide yield versus kQ/kD for five initial mixtures, three mixing strengths, and three escape ratios. The vertical line marks kQ/kD=1; neither manifold is assigned chemical preference.",
-    "figure07_controls": "Control branching and Hamiltonian commutator norm. Isotropic exchange and common Zeeman commute with PD and cannot coherently mix D/Q. Analytic escape-only and spin-independent reaction-only controls are included.",
-    "figure08_solver_validation": "Dormand-Prince 5(4) comparison to the matrix-exponential reference with mixing, relaxation, selective reaction, and escape. Dashed lines are numerical tolerances; this is not physical validation.",
-    "figure09_downstream_kinetics": "Illustrative 10 micromolar single radical pulse at fixed pH 7.4 with rapid HO2/O2-minus equilibrium and constant rates/SOD. Two radical equivalents form one H2O2; this is not continuously driven cellular ROS.",
-    "figure10_bulk_rate_comparison": "Condition-specific bulk semiquinone/O2 total rate constants. Unknown conditions remain visible; records are not combined into a universal rate and are never used as encounter kD or kQ.",
-    "figure11_circuit_validation": "Qiskit three-qubit dense-unitary simulator/embedding consistency for closed coherent evolution. It does not validate Hamiltonian derivation, reaction, escape, relaxation, or chemistry.",
+    "figure01_model_overview": "Figure 1. Corrected model overview. Doxorubicin reduction and semiquinone formation are classical upstream stages. A semiquinone-triplet-O2 encounter enters the six-state doublet/quartet quantum spin-evolution stage, followed by competing spin-selective electron transfer or escape. Integrated reaction flux forms primary superoxide; fixed-pH HO2/O2-minus speciation and dismutation subsequently form H2O2, which may be lost through a separate sink. Conceptual workflow created by the authors; not a simulation output. The diagram is non-quantitative and does not assert coherent preparation or a measured encounter.",
+    "figure02_benchmark_trajectories": "Figure 2. Benchmark encounter trajectories. Surviving doublet and quartet populations, total survival, cumulative doublet and quartet reaction yields, primary-superoxide yield, and escape yield are shown against normalized time for five benchmark mixtures. At every sampled time, YD + YQ + Yescape + Psurvival = 1 within numerical tolerance. The settings kD/kref=1, kQ/kD=0.1, kescape/kref=1, omega_local/kref=1, and gammaR/kref=gammaO/kref=0.1 are illustrative sensitivity coordinates, not measured parameters.",
+    "figure03_initial_state_comparison": "Figure 3. Initial-state comparison. Final reaction, escape, and unresolved survival outcomes are compared for the unpolarized encounter, doublet-manifold benchmark, quartet-manifold benchmark, and pD=0.25 and pD=0.75 mixtures. The doublet and quartet cases are computational limiting benchmarks rather than demonstrated chemically prepared states. Primary superoxide is the sum of integrated D and Q reaction yields, not a final spin population.",
+    "figure04_mixing_escape_heatmaps": "Figure 4. Mixing-versus-escape heatmaps. Primary-superoxide yield per encounter is calculated over normalized local D/Q mixing and escape rates for kQ/kD=0, 0.1, 1, and 10. The kQ/kD=1 panel is the spin-independent null condition. Zero and logarithmic nonzero coordinates are illustrative; no displayed range is experimentally established.",
+    "figure05_mixing_relaxation_heatmaps": "Figure 5. Mixing-versus-relaxation heatmaps. Primary-superoxide yield is calculated for an unpolarized benchmark over normalized local mixing and equal radical/O2 relaxation rates. The fixed settings are kD/kref=1, kescape/kref=1, and duration=8/kref; panels show kQ/kD=0, 0.1, 1, and 10, with equality marked as the spin-independent null. All coordinates are illustrative and non-predictive.",
+    "figure06_reaction_selectivity": "Figure 6. Reaction-selectivity sensitivity. Primary-superoxide yield is plotted against kQ/kD for unpolarized, doublet, quartet, pD=0.25, and pD=0.75 benchmarks across three mixing and escape settings. The vertical line marks kQ/kD=1 as the spin-independent null. The kQ/kD axis is a sensitivity coordinate, not a measured or chemically defensible probability distribution or physical range.",
+    "figure07_controls": "Figure 7. Controls and limiting cases. Baseline sensitivity, zero mixing, kQ=kD spin-independent reaction, fast relaxation, rapid escape, doublet benchmark, and quartet benchmark cases show primary reaction, escape, and unresolved survival. Stacked outcomes make probability accounting visible. All rates and initial-state restrictions are computational controls, not established encounter parameters or preparations.",
+    "figure08_solver_validation": "Figure 8. Independent numerical validation. A separately constructed adaptive Dormand-Prince 5(4) solver is compared with the constant-generator matrix-exponential reference for full density matrices, doublet and quartet populations, survival, reaction yields, escape yield, and probability balance. Dashed lines show declared tolerances. Agreement validates numerical implementation only, not physical encounter inputs.",
+    "figure09_downstream_kinetics": "Figure 9. Downstream ROS kinetics. Total superoxide-family radical pool, HO2, O2-minus, accumulated H2O2, and accumulated H2O2 loss are shown for spontaneous dismutation, SOD-mediated dismutation, and SOD plus H2O2 loss. The calculation starts from an illustrative 10 micromolar single radical pulse at fixed pH 7.4, assumes rapid acid-base equilibrium and constant rates/SOD, and consumes two radical equivalents per H2O2. No spin population is mapped directly to H2O2, and the trajectories are not cellular predictions.",
+    "figure10_bulk_rate_comparison": "Figure 10. Literature bulk-rate comparison. Actual numerical values stored in the configuration JSON and matched provenance CSV are plotted with reported uncertainty, pH, temperature, environment, species/protonation, method, and source identifiers. Missing conditions remain visibly marked and records are not combined into a universal rate. These M^-1 s^-1 bulk total constants are not encounter-level kD or kQ in s^-1.",
+    "figure11_circuit_validation": "Figure 11. Three-qubit coherent-embedding validation. The six-state coherent reference unitary is compared with its eight-state three-qubit embedding and, when requested and available, actual Qiskit statevector execution. Statevector, doublet and quartet observable, basis-ordering, and unused-state leakage errors are compared with declared tolerances. This validates coherent simulator and encoding consistency only; it does not validate reaction, relaxation, escape, downstream chemistry, hardware performance, or quantum advantage.",
 }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--mode", choices=("quick", "full"), help="analysis mode")
     mode.add_argument("--quick", action="store_true", help="small grids for CI and rapid review")
     mode.add_argument("--full", action="store_true", help="publication grid (default)")
     parser.add_argument("--reference-rate-s", type=float, default=1e6)
@@ -748,6 +1033,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results" / "paper")
     parser.add_argument("--formats", default="png,pdf,svg")
     parser.add_argument("--dpi", type=int, default=300)
+    parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--execute-circuit", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser
@@ -756,9 +1042,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     started = time.perf_counter()
     args = build_parser().parse_args(argv)
-    mode = "quick" if args.quick else "full"
-    samples = args.samples if args.samples is not None else (61 if args.quick else 241)
-    grid_size = args.grid_size if args.grid_size is not None else (5 if args.quick else 17)
+    mode = args.mode or ("quick" if args.quick else "full")
+    samples = args.samples if args.samples is not None else (61 if mode == "quick" else 241)
+    grid_size = args.grid_size if args.grid_size is not None else (5 if mode == "quick" else 17)
     if not np.isfinite(args.reference_rate_s) or args.reference_rate_s <= 0:
         raise SystemExit("--reference-rate-s must be finite and positive")
     if isinstance(samples, bool) or not 11 <= samples <= 2001:
@@ -767,6 +1053,8 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit("--grid-size must be an integer from 4 through 41")
     if not 72 <= args.dpi <= 1200:
         raise SystemExit("--dpi must be from 72 through 1200")
+    if isinstance(args.seed, bool):
+        raise SystemExit("--seed must be an integer")
     formats = tuple(dict.fromkeys(
         part.strip().lower() for part in args.formats.split(",") if part.strip()
     ))
@@ -799,10 +1087,10 @@ def main(argv: list[str] | None = None) -> None:
         data_sets["figure08_solver_validation"], solver_summary,
     ) = _solver_validation(args.reference_rate_s, samples)
     data_sets["figure09_downstream_kinetics"] = _downstream_data(authority, samples)
-    data_sets["figure10_bulk_rate_comparison"] = _bulk_rows(authority)
+    data_sets["figure10_bulk_rate_comparison"] = _bulk_rows(authority, provenance)
     (
         data_sets["figure11_circuit_validation"], circuit_record,
-    ) = _circuit_rows(args.reference_rate_s, args.execute_circuit)
+    ) = _circuit_rows(args.reference_rate_s, args.execute_circuit, args.seed)
     for rows in data_sets.values():
         _augment_rows(rows, metadata, config, provenance)
 
@@ -823,8 +1111,7 @@ def main(argv: list[str] | None = None) -> None:
         "figure09_downstream_kinetics": plot_downstream,
         "figure10_bulk_rate_comparison": plot_bulk_rates,
     }
-    if data_sets["figure11_circuit_validation"][0]["status"] == "executed":
-        plotters["figure11_circuit_validation"] = plot_circuit_validation
+    plotters["figure11_circuit_validation"] = plot_circuit_validation
     generated_figures: list[Path] = []
     for stem, plotter in plotters.items():
         rows_from_disk = read_csv(source_paths[stem])
@@ -856,58 +1143,67 @@ def main(argv: list[str] | None = None) -> None:
         {"summary_type": "control", "source_grid": "figure07_controls", **row}
         for row in data_sets["figure07_controls"]
     ]
+    for row in baseline_rows:
+        row["survival_probability"] = row["unresolved_probability"]
     table_sets = {
-        "table01_parameter_provenance": provenance_rows,
-        "table02_unavailable_encounter_parameters": unavailable_rows,
-        "table03_baseline_sensitivity_results": baseline_rows,
-        "table04_controls_and_selected_grid_extrema": control_summary + extrema,
-        "table05_independent_solver_validation": solver_summary,
-        "table06_circuit_validation": data_sets["figure11_circuit_validation"],
-        "table07_experimental_validation_datasets": _validation_dataset_rows(authority),
-        "table08_requirements_traceability": _traceability_rows(),
+        "table01_original_versus_corrected_model": _model_comparison_rows(),
+        "table02_parameter_provenance": provenance_rows,
+        "table03_unavailable_parameters_and_consequences": unavailable_rows,
+        "table04_baseline_results": baseline_rows,
+        "table05_controls_and_extrema": control_summary + extrema,
+        "table06_independent_solver_validation": solver_summary,
+        "table07_circuit_validation": data_sets["figure11_circuit_validation"],
+        "table08_experimental_validation_evidence": _validation_dataset_rows(authority),
+        "table09_requirements_traceability": _traceability_rows(),
     }
     markdown_fields = {
-        "table01_parameter_provenance": [
-            "symbol", "value_or_range", "unit", "species", "charge_state",
+        "table01_original_versus_corrected_model": [
+            "model_element", "original_implementation", "corrected_implementation",
+            "scientific_consequence",
+        ],
+        "table02_parameter_provenance": [
+            "symbol", "definition", "value_or_range", "unit", "species", "charge_state",
             "environment", "temperature", "pH", "method", "uncertainty",
-            "source", "status", "limitations", "permitted_use",
+            "source", "status", "limitations", "permitted_use", "code_location",
         ],
-        "table02_unavailable_encounter_parameters": [
-            "missing_parameter", "status", "conclusion_prohibited",
-            "allowed_treatment", "source_of_status",
+        "table03_unavailable_parameters_and_consequences": [
+            "missing_parameter", "why_needed", "status",
+            "sensitivity_coordinate_allowed", "range_status",
+            "conclusion_prohibited", "allowed_treatment", "source_of_status",
         ],
-        "table03_baseline_sensitivity_results": [
+        "table04_baseline_results": [
             "initial_state_definition", "p_doublet_initial",
             "doublet_reaction_yield_per_encounter",
             "quartet_reaction_yield_per_encounter",
             "primary_superoxide_yield_per_encounter", "escape_yield_per_encounter",
-            "unresolved_probability", "probability_balance",
+            "survival_probability", "probability_balance",
         ],
-        "table04_controls_and_selected_grid_extrema": [
+        "table05_controls_and_extrema": [
             "summary_type", "source_grid", "scenario_id", "control_label",
             "initial_state_definition", "mixing_over_reference",
             "radical_relaxation_over_reference", "escape_over_reference",
             "kq_over_kd", "primary_superoxide_yield_per_encounter",
             "escape_yield_per_encounter", "unresolved_probability",
         ],
-        "table05_independent_solver_validation": [
+        "table06_independent_solver_validation": [
             "observable", "worst_absolute_error", "worst_relative_error",
             "declared_absolute_tolerance", "passes", "reference_solver",
             "independent_solver", "scope",
         ],
-        "table06_circuit_validation": [
-            "metric", "value", "tolerance", "passes", "status",
+        "table07_circuit_validation": [
+            "metric", "validation_layer", "value", "tolerance", "passes",
+            "qiskit_available", "qiskit_execution_status", "status",
             "implementation_type", "scope", "reason",
         ],
-        "table07_experimental_validation_datasets": [
-            "dataset_id", "reported_values_and_uncertainties", "unit", "dose",
-            "environment", "temperature", "pH", "oxygen", "method", "source",
-            "suitability", "enabled_for_fit", "limitations",
+        "table08_experimental_validation_evidence": [
+            "dataset_id", "exact_chemical_or_biological_system", "observable",
+            "conditions", "reported_result", "unit", "method", "source",
+            "usable_for_direct_validation", "limitations",
         ],
-        "table08_requirements_traceability": [
+        "table09_requirements_traceability": [
             "requirement_id", "research_topic_or_output",
-            "evidence_or_implementation", "tests_figures_tables",
-            "completion_status", "limitations",
+            "exact_file", "exact_code_object", "figure_or_table", "test",
+            "evidence_status", "remaining_limitation",
         ],
     }
     for rows in table_sets.values():
@@ -927,12 +1223,15 @@ def main(argv: list[str] | None = None) -> None:
         "All encounter coordinates are normalized by the declared kref and are illustrative computational bounds, not measured ranges, confidence intervals, or priors.", "",
     ]
     for stem, caption in CAPTIONS.items():
-        if stem == "figure11_circuit_validation" and circuit_record.get("status") != "executed":
+        if stem == "figure11_circuit_validation" and circuit_record.get("qiskit_execution_status") != "executed":
             caption += (
-                f" Not executed: {circuit_record.get('reason')}. "
-                "No placeholder figure was generated."
+                f" Qiskit execution status: {circuit_record.get('qiskit_execution_status')}. "
+                f"Reason: {circuit_record.get('reason')}. The plotted NumPy embedding comparison remains available."
             )
         caption_lines.extend([f"## {stem}", "", caption, ""])
+        (paths["captions"] / f"{stem}_caption.txt").write_text(
+            caption + "\n", encoding="utf-8"
+        )
     (paths["metadata"] / "figure_captions.md").write_text(
         "\n".join(caption_lines), encoding="utf-8"
     )
@@ -1011,15 +1310,28 @@ def main(argv: list[str] | None = None) -> None:
         shlex.quote(sys.executable), shlex.quote(str(Path(__file__).resolve())),
         *[shlex.quote(argument) for argument in command_args],
     ])
-    timestamp = datetime.now().astimezone()
+    timestamp = datetime.now(timezone.utc)
+    figure_linkage = {
+        stem: {
+            "source_data": str(source_paths[stem].relative_to(output_dir)),
+            "caption": f"captions/{stem}_caption.txt",
+            "rendered_formats": [
+                f"figures/{stem}.{extension}" for extension in formats
+            ],
+        }
+        for stem in data_sets
+    }
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "analysis_mode": mode,
         "output_label": "NON-PREDICTIVE ROS_SPIN PAPER SENSITIVITY STUDY",
         "command_line_invocation": invocation,
         "timestamp_iso8601": timestamp.isoformat(),
-        "timezone": str(timestamp.tzinfo),
-        "random_seeds": {"circuit_state": SEED, "plotting": "deterministic/no randomness"},
+        "timezone": "UTC",
+        "random_seeds": {"circuit_state": args.seed, "plotting": "deterministic/no randomness"},
+        "reference_rate_s^-1": args.reference_rate_s,
+        "formats": list(formats),
+        "dpi": args.dpi,
         "grid_definition": {
             "grid_size_request": grid_size,
             "nonzero_mixing_relaxation_escape_bounds": [1e-2, 1e2],
@@ -1031,12 +1343,27 @@ def main(argv: list[str] | None = None) -> None:
         "sample_counts": {"trajectory": samples, "final_sweep": 2, "ofat": samples},
         "numerical_tolerances": TOLERANCES,
         "environment": metadata,
-        "skipped_features": [] if circuit_record.get("status") == "executed" else [{
-            "feature": "three-qubit circuit", "reason": circuit_record.get("reason")
+        "qiskit_execution": circuit_record,
+        "skipped_features": [] if circuit_record.get("qiskit_execution_status") == "executed" else [{
+            "feature": "Qiskit statevector execution", "reason": circuit_record.get("reason")
         }],
+        "assumptions": [
+            "encounter rates and frequencies are normalized illustrative coordinates",
+            "kD/kref=1 defines scale but is not a measured kD",
+            "initial D/Q states are computational benchmarks",
+            "downstream kinetics use fixed pH, rapid acid-base equilibrium, constant SOD and rate constants, and one radical pulse",
+            "two radical equivalents form one H2O2",
+            "bulk M^-1 s^-1 constants are not converted to encounter s^-1 rates",
+        ],
         "scientific_limitations": SCIENTIFIC_LIMITATIONS,
+        "figure_source_and_render_linkage": figure_linkage,
+        "table_files": [
+            f"tables/{stem}.{extension}"
+            for stem in table_sets for extension in ("csv", "md")
+        ],
         "runtime_seconds": time.perf_counter() - started,
         "generated_file_hashes_sha256": {},
+        "checksum_scope_note": "Self-referential metadata files are inventoried but excluded from their own embedded hash maps; output_checksums.csv hashes the final run manifest and all preceding artifacts.",
     }
 
     readme_path = output_dir / "README.md"
@@ -1045,7 +1372,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     known_files.extend([
         Path("README.md"), Path("metadata/run_manifest.json"),
-        Path("metadata/SHA256SUMS"),
+        Path("metadata/output_checksums.csv"), Path("metadata/SHA256SUMS"),
     ])
     known_files = sorted(set(known_files))
     readme_lines = [
@@ -1053,7 +1380,7 @@ def main(argv: list[str] | None = None) -> None:
         f"Generated by `{invocation}`.", "",
         "This directory is a complete non-predictive sensitivity-study run. Use `--overwrite` to replace it deliberately; otherwise choose a new output directory.", "",
         "## Artifact inventory", "",
-        "Every figure reads its values from the same-named CSV in `data/`. Figure 11 is intentionally absent when the circuit is not executed; its exact status remains in its CSV and Table 6.", "",
+        "Every figure reads its values from the same-named CSV in `data/`. Figure 11 always includes the NumPy six-to-eight-state embedding comparison and also includes Qiskit statevector metrics when execution was requested and available. Table 7 records the exact status.", "",
     ]
     for relative in known_files:
         if str(relative).startswith("data/"):
@@ -1068,6 +1395,15 @@ def main(argv: list[str] | None = None) -> None:
             f"- `{relative}` — {meaning}; apply its recorded limitations."
         )
     readme_lines.extend([
+        "", "## Exact reproduction", "",
+        "From the repository root, run:", "",
+        "```bash",
+        ".venv/bin/python paper_analysis.py --mode full --output-dir results/paper --execute-circuit --overwrite",
+        "```", "",
+        "The quick verification run is:", "",
+        "```bash",
+        ".venv/bin/python paper_analysis.py --mode quick --output-dir results/paper-quick --execute-circuit --overwrite",
+        "```", "",
         "", "## Scientific meaning and limitations", "", SCIENTIFIC_LIMITATIONS, "",
         "The downstream figure assumes fixed pH, rapid HO2/O2-minus equilibrium, constant SOD, constant rates, and one radical pulse. Bulk constants remain separate condition-specific records and are not encounter rates.", "",
     ])
@@ -1075,6 +1411,14 @@ def main(argv: list[str] | None = None) -> None:
 
     files_before_manifest = sorted(
         path for path in output_dir.rglob("*") if path.is_file()
+    )
+    manifest["generated_files"] = sorted(
+        {str(path.relative_to(output_dir)) for path in files_before_manifest}
+        | {
+            "metadata/run_manifest.json",
+            "metadata/output_checksums.csv",
+            "metadata/SHA256SUMS",
+        }
     )
     manifest["generated_file_hashes_sha256"] = {
         str(path.relative_to(output_dir)): _sha256(path)
@@ -1084,6 +1428,16 @@ def main(argv: list[str] | None = None) -> None:
     manifest_path.write_text(
         json.dumps(manifest, indent=2, default=_jsonable) + "\n", encoding="utf-8"
     )
+    checksum_rows = []
+    for path in sorted(path for path in output_dir.rglob("*") if path.is_file()):
+        relative = str(path.relative_to(output_dir))
+        checksum_rows.append({
+            "path": relative,
+            "sha256": _sha256(path),
+            "bytes": path.stat().st_size,
+            "artifact_kind": relative.split("/", 1)[0] if "/" in relative else "run_root",
+        })
+    write_csv(checksum_rows, paths["metadata"] / "output_checksums.csv")
     hash_lines = [
         f"{_sha256(path)}  {path.relative_to(output_dir)}"
         for path in sorted(path for path in output_dir.rglob("*") if path.is_file())

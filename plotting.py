@@ -37,6 +37,22 @@ STATE_COLORS = {
     "manifold mixture pD=0.75": "#CC79A7",
 }
 
+SENSITIVITY_WARNING = "NON-PREDICTIVE DIMENSIONLESS SENSITIVITY ANALYSIS"
+
+
+def _add_sensitivity_warning(fig, *, y: float = 0.006) -> None:
+    """Add the required visible warning to a sensitivity-result figure."""
+    fig.text(
+        0.5,
+        y,
+        SENSITIVITY_WARNING,
+        ha="center",
+        va="bottom",
+        fontsize=8,
+        fontweight="bold",
+        color="#8B1A1A",
+    )
+
 
 def configure_style() -> None:
     plt.rcParams.update({
@@ -97,7 +113,7 @@ def plot_model_overview(rows: list[dict]):
     )
     ax.text(
         0.2, -0.35,
-        "Sensitivity framework only: per-encounter spin dynamics and a separate fixed-pH, single-pulse ROS model",
+        "Conceptual workflow created by the authors; not a simulation output.",
         ha="left", va="center", fontsize=8.5, color="#555555",
     )
     return fig
@@ -129,13 +145,23 @@ def plot_benchmark_trajectories(rows: list[dict]):
         ax.grid(alpha=0.2)
     axes[-1].axis("off")
     handles, legend_labels = axes[0].get_legend_handles_labels()
-    axes[-1].legend(handles, legend_labels, loc="center", frameon=False, ncol=2)
+    axes[-1].legend(
+        handles, legend_labels, loc="upper center", frameon=False, ncol=2,
+        bbox_to_anchor=(0.5, 0.88),
+    )
+    axes[-1].text(
+        0.5, 0.25,
+        r"$Y_D + Y_Q + Y_{escape} + P_{survival} = 1$",
+        transform=axes[-1].transAxes, ha="center", va="center",
+        fontsize=10, fontweight="bold",
+    )
     for ax in axes[:4]:
         ax.set_ylabel("Probability or cumulative yield")
     for ax in axes[4:]:
         ax.set_xlabel(r"Normalized time, $t k_{ref}$")
     fig.suptitle("Illustrative benchmark encounter trajectories", y=0.995, fontsize=12)
-    fig.tight_layout(rect=(0, 0, 1, 0.98))
+    _add_sensitivity_warning(fig)
+    fig.tight_layout(rect=(0, 0.025, 1, 0.98))
     return fig
 
 
@@ -161,7 +187,8 @@ def plot_initial_state_comparison(rows: list[dict]):
     ax.set_ylim(0, 1.08)
     ax.legend(ncol=5, frameon=False, loc="lower center", bbox_to_anchor=(0.5, 1.01))
     ax.grid(axis="y", alpha=0.2)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    _add_sensitivity_warning(fig)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.95))
     return fig
 
 
@@ -199,31 +226,30 @@ def plot_mixing_escape_heatmaps(rows: list[dict]):
         mesh, ax=axes.ravel().tolist(),
         label="Primary-superoxide yield per encounter", shrink=0.82, pad=0.03,
     )
+    _add_sensitivity_warning(fig, y=-0.022)
     return fig
 
 
 def plot_mixing_relaxation_heatmaps(rows: list[dict]):
-    states = []
-    for row in rows:
-        if row["initial_state_definition"] not in states:
-            states.append(row["initial_state_definition"])
+    ratios = sorted({float(r["kq_over_kd"]) for r in rows})
     vmin = min(float(r["primary_superoxide_yield_per_encounter"]) for r in rows)
     vmax = max(float(r["primary_superoxide_yield_per_encounter"]) for r in rows)
     fig, axes = plt.subplots(
-        1, 3, figsize=(13, 4.1), sharex=True, sharey=True,
+        2, 2, figsize=(10.5, 8.5), sharex=True, sharey=True,
         layout="constrained",
     )
     mesh = None
-    for ax, state in zip(axes, states):
-        subset = [r for r in rows if r["initial_state_definition"] == state]
+    for ax, ratio in zip(axes.flat, ratios):
+        subset = [r for r in rows if float(r["kq_over_kd"]) == ratio]
         xs, ys, z = _heatmap_grid(subset, "mixing_over_reference", "radical_relaxation_over_reference")
         mesh = ax.pcolormesh(xs, ys, z, shading="nearest", cmap="cividis", vmin=vmin, vmax=vmax, rasterized=True)
         _set_normalized_symlog(ax, r"$\omega_{local}/k_{ref}$", r"$\gamma_R/k_{ref}=\gamma_O/k_{ref}$")
-        ax.set_title(state)
+        ax.set_title(rf"$k_Q/k_D={ratio:g}$" + (" (null)" if ratio == 1 else ""))
     fig.colorbar(
         mesh, ax=axes.ravel().tolist(),
         label="Primary-superoxide yield per encounter", shrink=0.85, pad=0.03,
     )
+    _add_sensitivity_warning(fig, y=-0.022)
     return fig
 
 
@@ -255,8 +281,9 @@ def plot_reaction_selectivity(rows: list[dict]):
             if j == 0:
                 ax.set_ylabel("Primary O$_2^{\u2022-}$ yield / encounter")
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.005))
-    fig.tight_layout(rect=(0, 0.045, 1, 1))
+    fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.035))
+    _add_sensitivity_warning(fig, y=-0.006)
+    fig.tight_layout(rect=(0, 0.09, 1, 1))
     return fig
 
 
@@ -291,7 +318,8 @@ def plot_controls(rows: list[dict]):
     axes[1].set_ylabel(r"$\|[H,P_D]\|_F/k_{ref}$")
     axes[1].set_xticks(x, labels, rotation=24, ha="right")
     axes[1].grid(axis="y", alpha=0.2)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    _add_sensitivity_warning(fig)
+    fig.tight_layout(rect=(0, 0.035, 1, 0.96))
     return fig
 
 
@@ -317,6 +345,7 @@ def plot_solver_validation(rows: list[dict], tolerances: dict):
     for key, label, color in (
         ("doublet_reaction_yield_abs_difference", "D reaction", COLORS["doublet"]),
         ("quartet_reaction_yield_abs_difference", "Q reaction", COLORS["quartet"]),
+        ("primary_superoxide_yield_abs_difference", "Total primary reaction", COLORS["superoxide"]),
         ("escape_yield_abs_difference", "Escape", COLORS["escape"]),
     ):
         axes[1, 0].plot(x, np.maximum([float(r[key]) for r in rows], floor), label=label, color=color)
@@ -333,7 +362,8 @@ def plot_solver_validation(rows: list[dict], tolerances: dict):
         ax.grid(alpha=0.2)
     for ax in axes[1]:
         ax.set_xlabel(r"Normalized time, $t k_{ref}$")
-    fig.tight_layout()
+    _add_sensitivity_warning(fig)
+    fig.tight_layout(rect=(0, 0.035, 1, 1))
     return fig
 
 
@@ -359,8 +389,9 @@ def plot_downstream(rows: list[dict]):
         ax.grid(alpha=0.2)
     axes[0].set_ylabel("Concentration (µM; illustrative pulse)")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.01))
-    fig.tight_layout(rect=(0, 0.10, 1, 1))
+    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 0.04))
+    _add_sensitivity_warning(fig, y=-0.006)
+    fig.tight_layout(rect=(0, 0.16, 1, 1))
     return fig
 
 
@@ -379,12 +410,27 @@ def plot_bulk_rates(rows: list[dict]):
         f"{r['temperature']}"
         for r in rows
     ]
-    ax.errorbar(values, y, xerr=errors, fmt="o", color="#0072B2", ecolor="#777777", capsize=4)
+    complete = np.array([
+        r["pH"] != "unknown" and r["temperature"] != "unknown"
+        and str(r.get("condition_matched_allowed", "False")) == "True"
+        for r in rows
+    ])
+    for mask, label, color, marker, fill in (
+        (complete, "Complete matched-condition record", "#0072B2", "o", "#0072B2"),
+        (~complete, "Incomplete or validation-only conditions", "#D55E00", "^", "white"),
+    ):
+        if np.any(mask):
+            ax.errorbar(
+                values[mask], y[mask], xerr=errors[mask], fmt=marker,
+                color=color, markerfacecolor=fill, markeredgecolor=color,
+                ecolor="#777777", capsize=4, label=label,
+            )
     ax.set_xscale("log")
     ax.set_yticks(y, labels)
     ax.set_xlabel(r"Documented bulk total rate constant (M$^{-1}$ s$^{-1}$)")
     ax.set_title("Condition-specific literature records (not a universal fitted rate)")
     ax.grid(axis="x", which="both", alpha=0.2)
+    ax.legend(frameon=False, fontsize=7.2, loc="best")
     detail.axis("off")
     table_rows = []
     for row in rows:

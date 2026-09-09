@@ -164,23 +164,31 @@ def run_mixing_escape_sweep(
     return rows
 
 
-def run_mixing_relaxation_sweep(reference_rate_s: float, grid_size: int) -> list[dict]:
-    """Bounded two-dimensional mixing/relaxation sweep for three inputs."""
+def run_mixing_relaxation_sweep(
+    reference_rate_s: float,
+    grid_size: int,
+    kq_over_kd_values=(0.0, 0.1, 1.0, 10.0),
+) -> list[dict]:
+    """Bounded mixing/relaxation sweep across the selectivity controls.
+
+    The encounter starts from the unpolarized benchmark, with kD/kref=1 and
+    kescape/kref=1 fixed.  The four kQ/kD panels are sensitivity coordinates;
+    equality is the spin-independent null condition.
+    """
     axis = normalized_axis(grid_size)
     rows = []
-    for initial_state, p_doublet, label in INITIAL_STATES[:3]:
+    for ratio in kq_over_kd_values:
         for mixing in axis:
             for relaxation in axis:
                 rows.append(encounter_result_row(
-                    scenario_id=f"mix_relax_{label.replace(' ', '_')}",
+                    scenario_id=f"mix_relax_kqkd_{ratio:g}",
                     reference_rate_s=reference_rate_s,
                     mixing_over_reference=float(mixing),
                     radical_relaxation_over_reference=float(relaxation),
                     oxygen_relaxation_over_reference=float(relaxation),
                     escape_over_reference=1.0,
-                    kq_over_kd=0.1,
-                    initial_state=initial_state,
-                    p_doublet=p_doublet,
+                    kq_over_kd=float(ratio),
+                    initial_state="unpolarized",
                 ))
     return rows
 

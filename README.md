@@ -39,17 +39,31 @@ Generate a rapid complete bundle or the publication-grid bundle. An existing,
 nonempty output directory is refused unless `--overwrite` is explicit.
 
 ```bash
-.venv/bin/python paper_analysis.py --quick --execute-circuit \
+.venv/bin/python paper_analysis.py --mode quick --execute-circuit \
   --output-dir results/paper-quick
-.venv/bin/python paper_analysis.py --full --execute-circuit \
+.venv/bin/python paper_analysis.py --mode full --execute-circuit \
   --output-dir results/paper
 ```
 
 The default formats are 300-dpi PNG plus vector PDF and SVG. Useful bounded
 overrides include `--reference-rate-s`, `--samples`, `--grid-size`, `--config`,
-`--provenance`, `--formats`, and `--dpi`. Grid bounds are illustrative
+`--provenance`, `--formats`, `--dpi`, and `--seed`. Grid bounds are illustrative
 computational bounds—not measured ranges, plausible ranges, confidence
 intervals, or priors.
+
+Build the professor-facing Word document, matched PDF, summary, and ZIP after
+the full paper run:
+
+```bash
+.venv/bin/python render_equations.py assets/equations
+python3 professor_handoff.py --results-dir results/paper \
+  --deliverables-dir deliverables --overwrite
+```
+
+The final paper run contains Figures 1-11 as PNG, SVG, and PDF, one source CSV
+and caption file per figure, Tables 1-9 as CSV and Markdown, and reproducibility
+metadata. The formatted versions of Tables 1-9 are embedded in the professor
+handoff document.
 
 Run one individual encounter and one mixture benchmark:
 

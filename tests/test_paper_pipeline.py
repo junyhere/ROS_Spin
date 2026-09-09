@@ -14,12 +14,14 @@ import unittest
 import numpy as np
 from PIL import Image, ImageStat
 import matplotlib.pyplot as plt
+from docx import Document
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sensitivity_analysis import encounter_result_row  # noqa: E402
 from paper_analysis import TOLERANCES  # noqa: E402
+from professor_handoff import PROVENANCE_STATEMENT, build_docx  # noqa: E402
 from plotting import (  # noqa: E402
     plot_bulk_rates,
     plot_controls,
@@ -40,9 +42,10 @@ class PaperPipelineTests(unittest.TestCase):
         cls.output = Path(cls.temporary.name) / "paper"
         completed = subprocess.run(
             [
-                sys.executable, "paper_analysis.py", "--quick",
+                sys.executable, "paper_analysis.py", "--mode", "quick",
                 "--samples", "21", "--grid-size", "4",
-                "--formats", "png", "--dpi", "100", "--execute-circuit",
+                "--formats", "png", "--dpi", "100", "--seed", "1729",
+                "--execute-circuit",
                 "--output-dir", str(cls.output),
             ],
             cwd=ROOT, text=True, capture_output=True,
@@ -60,10 +63,16 @@ class PaperPipelineTests(unittest.TestCase):
             return list(csv.DictReader(handle))
 
     def test_active_modules_and_clis_import(self):
-        for module in ("spin_chemistry", "ROS", "sensitivity_analysis", "plotting", "paper_analysis"):
+        for module in (
+            "spin_chemistry", "ROS", "sensitivity_analysis", "plotting",
+            "paper_analysis", "professor_handoff",
+        ):
             imported = importlib.import_module(module)
             self.assertIsNotNone(imported, module)
-        for script in ("ROS.py", "sensitivity_analysis.py", "paper_analysis.py"):
+        for script in (
+            "ROS.py", "sensitivity_analysis.py", "paper_analysis.py",
+            "professor_handoff.py",
+        ):
             completed = subprocess.run(
                 [sys.executable, script, "--help"], cwd=ROOT,
                 text=True, capture_output=True,
@@ -71,7 +80,10 @@ class PaperPipelineTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_active_files_do_not_reference_removed_two_qubit_api(self):
-        active = ("spin_chemistry.py", "ROS.py", "sensitivity_analysis.py", "plotting.py", "paper_analysis.py")
+        active = (
+            "spin_chemistry.py", "ROS.py", "sensitivity_analysis.py",
+            "plotting.py", "paper_analysis.py", "professor_handoff.py",
+        )
         removed = ("build_rp_circuit", "counts_to_ros", "coherent_circuit_validation", "f_ow", "f_fb")
         for filename in active:
             source = (ROOT / filename).read_text(encoding="utf-8")
@@ -93,7 +105,7 @@ class PaperPipelineTests(unittest.TestCase):
 
     def test_quick_generation_has_complete_directory_and_artifact_contract(self):
         self.assertEqual(self.report["status"], "complete")
-        for directory in ("data", "figures", "tables", "metadata"):
+        for directory in ("data", "figures", "tables", "captions", "metadata"):
             self.assertTrue((self.output / directory).is_dir())
         self.assertTrue((self.output / "README.md").is_file())
         for number in range(1, 12):
@@ -101,16 +113,28 @@ class PaperPipelineTests(unittest.TestCase):
             sources = list((self.output / "data").glob(f"{stem}*.csv"))
             self.assertEqual(len(sources), 1, stem)
             self.assertGreater(sources[0].stat().st_size, 100)
-        for number in range(1, 9):
+            captions = list((self.output / "captions").glob(f"{stem}*_caption.txt"))
+            self.assertEqual(len(captions), 1, stem)
+        for number in range(1, 10):
             self.assertEqual(len(list((self.output / "tables").glob(f"table{number:02d}_*.csv"))), 1)
             self.assertEqual(len(list((self.output / "tables").glob(f"table{number:02d}_*.md"))), 1)
 
+    def test_unavailable_parameter_consequences_are_parameter_specific(self):
+        rows = {
+            row["missing_parameter"]: row
+            for row in self._rows(
+                "table03_unavailable_parameters_and_consequences", "tables"
+            )
+        }
+        self.assertIn("observation endpoint or residence time", rows["encounter duration"]["why_needed"])
+        self.assertIn("solution encounter", rows["encounter-specific O2 relaxation"]["why_needed"])
+        self.assertIn("removal of downstream H2O2", rows["compartment-specific H2O2 loss rate"]["why_needed"])
+        self.assertIn("compartment-level H2O2", rows["compartment-specific H2O2 loss rate"]["conclusion_prohibited"])
+        self.assertTrue((self.output / "metadata" / "output_checksums.csv").is_file())
+
     def test_every_rendered_figure_is_nonblank_and_has_source_csv(self):
-        circuit_rows = self._rows("figure11_circuit_validation")
-        executed = circuit_rows[0]["status"] == "executed"
-        expected = 11 if executed else 10
         figures = sorted((self.output / "figures").glob("*.png"))
-        self.assertEqual(len(figures), expected)
+        self.assertEqual(len(figures), 11)
         for figure in figures:
             source = self.output / "data" / f"{figure.stem}.csv"
             self.assertTrue(source.is_file(), figure)
@@ -118,6 +142,20 @@ class PaperPipelineTests(unittest.TestCase):
                 self.assertGreater(image.width, 300)
                 self.assertGreater(image.height, 200)
                 self.assertGreater(sum(ImageStat.Stat(image.convert("RGB")).var), 1.0)
+
+    def test_required_labels_and_exact_controls_are_present(self):
+        plotting_source = (ROOT / "plotting.py").read_text(encoding="utf-8")
+        self.assertIn("NON-PREDICTIVE DIMENSIONLESS SENSITIVITY ANALYSIS", plotting_source)
+        caption1 = next((self.output / "captions").glob("figure01*_caption.txt")).read_text()
+        self.assertIn("Conceptual workflow created by the authors; not a simulation output.", caption1)
+        controls = {row["scenario_id"] for row in self._rows("figure07_controls")}
+        self.assertEqual(controls, {
+            "baseline_sensitivity", "zero_mixing", "spin_independent_reaction",
+            "fast_relaxation", "rapid_escape", "doublet_benchmark",
+            "quartet_benchmark",
+        })
+        ratios = {float(row["kq_over_kd"]) for row in self._rows("figure05_mixing_relaxation_heatmaps")}
+        self.assertEqual(ratios, {0.0, 0.1, 1.0, 10.0})
 
     def test_known_publication_layout_overlaps_are_prevented(self):
         controls = plot_controls(self._rows("figure07_controls"))
@@ -239,22 +277,33 @@ class PaperPipelineTests(unittest.TestCase):
             )
 
     def test_solver_and_circuit_records_are_honest(self):
-        solver = self._rows("table05_independent_solver_validation", "tables")
+        solver = self._rows("table06_independent_solver_validation", "tables")
         self.assertTrue(all(row["passes"] == "True" for row in solver))
         self.assertLess(max(float(row["worst_absolute_error"]) for row in solver), 3e-9)
-        circuit = self._rows("table06_circuit_validation", "tables")
-        if circuit[0]["status"] == "executed":
-            self.assertTrue(all(row["passes"] == "True" for row in circuit))
-            self.assertTrue((self.output / "figures" / "figure11_circuit_validation.png").is_file())
-        else:
-            self.assertTrue(circuit[0]["reason"])
-            self.assertFalse((self.output / "figures" / "figure11_circuit_validation.png").exists())
+        circuit = self._rows("table07_circuit_validation", "tables")
+        self.assertTrue(all(row["passes"] == "True" for row in circuit))
+        self.assertEqual(circuit[0]["qiskit_execution_status"], "executed")
+        self.assertTrue((self.output / "figures" / "figure11_circuit_validation.png").is_file())
+
+    def test_word_document_is_generated_from_pipeline_tables_and_figures(self):
+        output = Path(self.temporary.name) / "handoff.docx"
+        build_docx(self.output, output)
+        self.assertTrue(output.is_file())
+        self.assertGreater(output.stat().st_size, 100_000)
+        document = Document(output)
+        text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn(PROVENANCE_STATEMENT, text)
+        self.assertIn("Supported Claims", text)
+        self.assertGreaterEqual(len(document.inline_shapes), 11)
+        self.assertGreaterEqual(len(document.tables), 12)
 
     def test_manifest_hashes_resolve_and_overwrite_is_explicit(self):
         manifest = json.loads((self.output / "metadata" / "run_manifest.json").read_text())
         self.assertIn("command_line_invocation", manifest)
         self.assertIn("grid_definition", manifest)
         self.assertIn("numerical_tolerances", manifest)
+        self.assertIn("figure_source_and_render_linkage", manifest)
+        self.assertEqual(manifest["random_seeds"]["circuit_state"], 1729)
         for relative, expected in manifest["generated_file_hashes_sha256"].items():
             path = self.output / relative
             self.assertTrue(path.is_file(), relative)
