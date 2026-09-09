@@ -52,7 +52,10 @@ def _format_number(field: str, number: float) -> str:
     if number == 0:
         return "0"
     absolute = abs(number)
-    if any(token in field for token in ("probability", "population")) and absolute < 1e-15:
+    if (
+        any(token in field for token in ("probability", "population"))
+        or field.startswith("p_doublet")
+    ) and absolute < 1e-15:
         return "0 (roundoff)"
     if any(token in field for token in ("error", "tolerance")):
         return f"{number:.3e}"

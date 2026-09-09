@@ -20,7 +20,11 @@ sys.path.insert(0, str(ROOT))
 
 from sensitivity_analysis import encounter_result_row  # noqa: E402
 from paper_analysis import TABLE_PRESENTATION, TOLERANCES  # noqa: E402
-from table_rendering import build_table_pages, read_source_csv  # noqa: E402
+from table_rendering import (  # noqa: E402
+    build_table_pages,
+    format_presentation_cell,
+    read_source_csv,
+)
 from plotting import (  # noqa: E402
     plot_bulk_rates,
     plot_controls,
@@ -181,6 +185,16 @@ class PaperPipelineTests(unittest.TestCase):
         self.assertEqual(
             rows["H9c2_MitoSOX"],
             "relative MitoSOX fluorescence (oxidant proxy)",
+        )
+
+    def test_presentation_marks_projector_roundoff_without_altering_csv(self):
+        self.assertEqual(
+            format_presentation_cell("p_doublet_initial", "-1.008e-17"),
+            "0 (roundoff)",
+        )
+        self.assertEqual(
+            format_presentation_cell("p_doublet_initial", "0"),
+            "0",
         )
 
     def test_every_rendered_figure_is_nonblank_and_has_source_csv(self):
