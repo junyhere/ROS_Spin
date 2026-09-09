@@ -4,7 +4,7 @@ All encounter coordinates are normalized by the declared kref and are illustrati
 
 ## figure01_model_overview
 
-Figure 1. Corrected model overview. Doxorubicin reduction and semiquinone formation are classical upstream stages. A semiquinone-triplet-O2 encounter enters the six-state doublet/quartet quantum spin-evolution stage, followed by competing spin-selective electron transfer or escape. Integrated reaction flux forms primary superoxide; fixed-pH HO2/O2-minus speciation and dismutation subsequently form H2O2, which may be lost through a separate sink. Conceptual workflow created by the authors; not a simulation output. The diagram is non-quantitative and does not assert coherent preparation or a measured encounter.
+Figure 1. Corrected model overview. Formal electron-transfer bookkeeping is AQ + e- -> AQ radical anion, followed by AQ radical anion + ground-state triplet O2 -> AQ + O2 radical anion; the modeled downstream pool uses HO2/O2 radical-anion equilibrium and two radical equivalents per H2O2. Closed-shell AQ has zero unpaired electrons, semiquinone and superoxide each have one (doublet), and ground-state O2 has two (triplet); singlet oxygen is excluded. The semiquinone protonation/formal charge is condition-dependent and is not assigned as a measured active-model input. A semiquinone-triplet-O2 encounter enters the six-state doublet/quartet stage, followed by competing conditional reaction or escape. Conceptual workflow created by the authors; not a simulation output. The diagram is non-quantitative and does not assert coherent preparation or a measured encounter.
 
 ## figure02_benchmark_trajectories
 
@@ -32,7 +32,7 @@ Figure 7. Controls and limiting cases. Baseline sensitivity, zero mixing, kQ=kD 
 
 ## figure08_solver_validation
 
-Figure 8. Independent numerical validation. A separately constructed adaptive Dormand-Prince 5(4) solver is compared with the constant-generator matrix-exponential reference for full density matrices, doublet and quartet populations, survival, reaction yields, escape yield, and probability balance. Dashed lines show declared tolerances. Agreement validates numerical implementation only, not physical encounter inputs.
+Figure 8. Independent numerical validation. A separately constructed adaptive Dormand-Prince 5(4) solver is compared with the constant-generator matrix-exponential reference for full density matrices, doublet and quartet populations, survival, reaction yields, escape yield, and probability balance. Dashed lines show declared absolute tolerances. The symmetric-log display includes exact zero without replacing it by an artificial logarithmic floor. Agreement validates numerical implementation only, not physical encounter inputs or the coherent circuit.
 
 ## figure09_downstream_kinetics
 
@@ -44,4 +44,4 @@ Figure 10. Literature bulk-rate comparison. Actual numerical values stored in th
 
 ## figure11_circuit_validation
 
-Figure 11. Three-qubit coherent-embedding validation. The six-state coherent reference unitary is compared with its eight-state three-qubit embedding and, when requested and available, actual Qiskit statevector execution. Statevector, doublet and quartet observable, basis-ordering, and unused-state leakage errors are compared with declared tolerances. This validates coherent simulator and encoding consistency only; it does not validate reaction, relaxation, escape, downstream chemistry, hardware performance, or quantum advantage.
+Figure 11. Three-qubit coherent-embedding validation. Physical six-state basis indices [0,1,2,4,5,6] are embedded in an eight-state register; indices [3,7] are unused. A normalized pseudorandom six-component statevector (seed 1729) is supplied numerically, not prepared by gates. One dense 8x8 UnitaryGate contains U=exp(-iH t) for t=1/kref; no Trotter, delay, noise, reaction, measurement, or sampling gates are executed. Statevector, numerical D/Q projector expectations, basis ordering, and unused-state leakage are compared with the direct six-state result. This validates coherent simulator and encoding consistency only; it does not independently validate H, the open-system model, chemistry, hardware performance, or quantum advantage.

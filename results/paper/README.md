@@ -8,7 +8,7 @@ This directory is a complete non-predictive sensitivity-study run. Use `--overwr
 
 Every figure reads its values from the same-named CSV in `data/`. Figure 11 always includes the NumPy six-to-eight-state embedding comparison and also includes Qiskit statevector metrics when execution was requested and available. Table 7 records the exact status.
 
-The `tables/ROS_Spin_paper_tables.docx` file contains all nine editable tables. Each `*_word.tsv` file uses tab separators and curated plain-text values for reliable Word conversion. The CSV files retain the complete machine-readable records and are not intended for Word's Convert Text to Table command.
+Tables 1-10 each have a complete machine-readable CSV, a multipage typeset PDF, and numbered high-resolution PNG page previews. The rendered panels use documented presentation columns and rounding; the linked CSV retains every row, every column, full numerical precision, and provenance fields. `Not available` is never rendered as numeric zero.
 
 - `README.md` — run metadata, captions, or computed summary; apply its recorded limitations.
 - `captions/figure01_model_overview_caption.txt` — run metadata, captions, or computed summary; apply its recorded limitations.
@@ -73,34 +73,81 @@ The `tables/ROS_Spin_paper_tables.docx` file contains all nine editable tables. 
 - `metadata/paper_results_summary.json` — run metadata, captions, or computed summary; apply its recorded limitations.
 - `metadata/paper_results_summary.md` — run metadata, captions, or computed summary; apply its recorded limitations.
 - `metadata/run_manifest.json` — run metadata, captions, or computed summary; apply its recorded limitations.
-- `tables/ROS_Spin_paper_tables.docx` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table01_original_versus_corrected_model.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table01_original_versus_corrected_model.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table01_original_versus_corrected_model_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table01_original_versus_corrected_model.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table01_original_versus_corrected_model_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table01_original_versus_corrected_model_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table02_parameter_provenance.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table02_parameter_provenance.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table02_parameter_provenance_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_04.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_05.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_06.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_07.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_08.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_09.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_10.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_11.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_12.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table02_parameter_provenance_page_13.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table03_unavailable_parameters_and_consequences.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table03_unavailable_parameters_and_consequences.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table03_unavailable_parameters_and_consequences_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table03_unavailable_parameters_and_consequences.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table03_unavailable_parameters_and_consequences_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table03_unavailable_parameters_and_consequences_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table03_unavailable_parameters_and_consequences_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table03_unavailable_parameters_and_consequences_page_04.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table04_baseline_results.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table04_baseline_results.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table04_baseline_results_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table04_baseline_results.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table04_baseline_results_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table05_controls_and_extrema.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table05_controls_and_extrema.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table05_controls_and_extrema_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table05_controls_and_extrema.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table05_controls_and_extrema_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table05_controls_and_extrema_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table06_independent_solver_validation.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table06_independent_solver_validation.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table06_independent_solver_validation_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table06_independent_solver_validation.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table06_independent_solver_validation_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table06_independent_solver_validation_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table07_circuit_validation.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table07_circuit_validation.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table07_circuit_validation_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation_page_04.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table07_circuit_validation_page_05.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table08_experimental_validation_evidence.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table08_experimental_validation_evidence.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table08_experimental_validation_evidence_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table08_experimental_validation_evidence.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table08_experimental_validation_evidence_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table08_experimental_validation_evidence_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table08_experimental_validation_evidence_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table09_requirements_traceability.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 - `tables/table09_requirements_traceability.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
-- `tables/table09_requirements_traceability_word.tsv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_04.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_05.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_06.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_07.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table09_requirements_traceability_page_08.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark.csv` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark.md` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark.pdf` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark_page_01.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark_page_02.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark_page_03.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark_page_04.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
+- `tables/table10_runtime_memory_benchmark_page_05.png` — publication-ready or machine-readable evidence/results table; apply its recorded limitations.
 
 ## Exact reproduction
 
@@ -122,3 +169,11 @@ The quick verification run is:
 Illustrative computational sensitivity study only. Encounter preparation, kD, kQ, escape, duration, relaxation, exchange, dipolar coupling, geometry, and encounter O2 tensors are unavailable. No per-encounter yield is converted to concentration or biological flux. No measured coherence, D/Q selectivity, quantum advantage, entanglement, magnetic control, or quantitative biological ROS prediction is claimed.
 
 The downstream figure assumes fixed pH, rapid HO2/O2-minus equilibrium, constant SOD, constant rates, and one radical pulse. Bulk constants remain separate condition-specific records and are not encounter rates.
+
+All encounter yields are finite-time quantities with unresolved survival reported explicitly; none is an asserted asymptotic yield. Any seconds shown come from the illustrative reference-rate conversion and are not measured encounter times.
+
+The local-spin GKSL term is phenomenological isotropic depolarization, not measured T1/T2. The local electronic-field proxy is static, not stochastic magnetic noise or explicit nuclear hyperfine dynamics.
+
+Table 9 records every critique item A1-A15 and B1-B7. Original reviewer correspondence was unavailable; withdrawn or scope-reduced requests are not represented as reviewer acceptance.
+
+The manifest records the clean generation commit separately from the later results commit; source, configuration, and provenance hashes are the acceptance basis.
