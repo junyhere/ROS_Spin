@@ -326,8 +326,7 @@ def plot_controls(rows: list[dict]):
 def plot_solver_validation(rows: list[dict], tolerances: dict):
     x = np.array([float(r["normalized_time"]) for r in rows])
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 7.5), sharex=True)
-    floor = 1e-17
-    axes[0, 0].plot(x, np.maximum([float(r["max_density_matrix_abs_error"]) for r in rows], floor), color="#222222")
+    axes[0, 0].plot(x, [float(r["max_density_matrix_abs_error"]) for r in rows], color="#222222")
     axes[0, 0].axhline(tolerances["density"], color="#D55E00", linestyle="--", label="declared tolerance")
     axes[0, 0].set_ylabel("Max |density-matrix difference|")
     axes[0, 0].legend(frameon=False)
@@ -336,7 +335,7 @@ def plot_solver_validation(rows: list[dict], tolerances: dict):
         ("quartet_population_abs_difference", "Q population", COLORS["quartet"]),
         ("survival_abs_difference", "Survival", COLORS["survival"]),
     ):
-        axes[0, 1].plot(x, np.maximum([float(r[key]) for r in rows], floor), label=label, color=color)
+        axes[0, 1].plot(x, [float(r[key]) for r in rows], label=label, color=color)
     axes[0, 1].axhline(tolerances["observable"], color="#D55E00", linestyle="--")
     axes[0, 1].set_ylabel("Population absolute difference")
     axes[0, 1].legend(
@@ -348,17 +347,17 @@ def plot_solver_validation(rows: list[dict], tolerances: dict):
         ("primary_superoxide_yield_abs_difference", "Total primary reaction", COLORS["superoxide"]),
         ("escape_yield_abs_difference", "Escape", COLORS["escape"]),
     ):
-        axes[1, 0].plot(x, np.maximum([float(r[key]) for r in rows], floor), label=label, color=color)
+        axes[1, 0].plot(x, [float(r[key]) for r in rows], label=label, color=color)
     axes[1, 0].axhline(tolerances["observable"], color="#D55E00", linestyle="--")
     axes[1, 0].set_ylabel("Cumulative-yield absolute difference")
     axes[1, 0].legend(frameon=False)
-    axes[1, 1].plot(x, np.maximum([float(r["reference_probability_accounting_error"]) for r in rows], floor), label="Matrix exponential", color="#0072B2")
-    axes[1, 1].plot(x, np.maximum([float(r["independent_probability_accounting_error"]) for r in rows], floor), label="Dormand–Prince", color="#E69F00")
+    axes[1, 1].plot(x, [float(r["reference_probability_accounting_error"]) for r in rows], label="Matrix exponential", color="#0072B2")
+    axes[1, 1].plot(x, [float(r["independent_probability_accounting_error"]) for r in rows], label="Dormand-Prince", color="#E69F00")
     axes[1, 1].axhline(tolerances["balance"], color="#D55E00", linestyle="--")
     axes[1, 1].set_ylabel("Probability-accounting error")
     axes[1, 1].legend(frameon=False)
     for ax in axes.flat:
-        ax.set_yscale("log")
+        ax.set_yscale("symlog", linthresh=1e-16, linscale=0.8)
         ax.grid(alpha=0.2)
     for ax in axes[1]:
         ax.set_xlabel(r"Normalized time, $t k_{ref}$")

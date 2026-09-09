@@ -204,6 +204,26 @@ class EncounterDynamicsTests(unittest.TestCase):
         )
         self.assertAlmostEqual(accounted, 1.0, places=5)
 
+    def test_relaxation_only_generator_preserves_trace_and_positivity(self):
+        parameters = EncounterParameters(
+            radical_relaxation_s=7e5,
+            oxygen_relaxation_s=4e5,
+        )
+        for initial_state in ("unpolarized", "doublet", "quartet"):
+            output = propagate_encounter_reference(
+                parameters, 4e-6, initial_state, samples=81
+            )
+            traces = np.trace(
+                output["density_matrices"], axis1=1, axis2=2
+            ).real
+            minima = [
+                np.linalg.eigvalsh((density + density.conj().T) / 2).min()
+                for density in output["density_matrices"]
+            ]
+            self.assertLess(np.max(np.abs(traces - 1.0)), 2e-12)
+            self.assertGreaterEqual(float(np.min(minima)), -2e-12)
+            self.assertAlmostEqual(output["probability_balance"], 1.0, places=12)
+
     def test_output_sampling_density_roundoff_only(self):
         # The reference step exponential is exact for the constant generator;
         # this checks output sampling/roundoff, not independent convergence.

@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sensitivity_analysis import encounter_result_row  # noqa: E402
-from paper_analysis import TOLERANCES  # noqa: E402
+from paper_analysis import TABLE_PRESENTATION, TOLERANCES  # noqa: E402
+from table_rendering import build_table_pages, read_source_csv  # noqa: E402
 from plotting import (  # noqa: E402
     plot_bulk_rates,
     plot_controls,
@@ -63,7 +64,7 @@ class PaperPipelineTests(unittest.TestCase):
     def test_active_modules_and_clis_import(self):
         for module in (
             "spin_chemistry", "ROS", "sensitivity_analysis", "plotting",
-            "paper_analysis",
+            "paper_analysis", "table_rendering",
         ):
             imported = importlib.import_module(module)
             self.assertIsNotNone(imported, module)
@@ -79,7 +80,7 @@ class PaperPipelineTests(unittest.TestCase):
     def test_active_files_do_not_reference_removed_two_qubit_api(self):
         active = (
             "spin_chemistry.py", "ROS.py", "sensitivity_analysis.py",
-            "plotting.py", "paper_analysis.py",
+            "plotting.py", "paper_analysis.py", "table_rendering.py",
         )
         removed = ("build_rp_circuit", "counts_to_ros", "coherent_circuit_validation", "f_ow", "f_fb")
         for filename in active:
@@ -99,9 +100,55 @@ class PaperPipelineTests(unittest.TestCase):
             self.assertGreater(sources[0].stat().st_size, 100)
             captions = list((self.output / "captions").glob(f"{stem}*_caption.txt"))
             self.assertEqual(len(captions), 1, stem)
-        for number in range(1, 10):
+        for number in range(1, 11):
             self.assertEqual(len(list((self.output / "tables").glob(f"table{number:02d}_*.csv"))), 1)
             self.assertEqual(len(list((self.output / "tables").glob(f"table{number:02d}_*.md"))), 1)
+            self.assertEqual(len(list((self.output / "tables").glob(f"table{number:02d}_*.pdf"))), 1)
+            self.assertGreaterEqual(
+                len(list((self.output / "tables").glob(f"table{number:02d}_*_page_*.png"))),
+                1,
+            )
+
+    def test_rendered_tables_cover_every_csv_row_and_use_high_resolution_pages(self):
+        manifest = json.loads((self.output / "metadata" / "run_manifest.json").read_text())
+        linkage = manifest["table_source_and_render_linkage"]
+        self.assertEqual(set(linkage), set(TABLE_PRESENTATION))
+        for stem, spec in TABLE_PRESENTATION.items():
+            csv_path = self.output / "tables" / f"{stem}.csv"
+            source_fields, rows = read_source_csv(csv_path)
+            pages = build_table_pages(rows, spec, {})
+            for panel_index in range(len(spec["panels"])):
+                presented = [
+                    source_index
+                    for page in pages if page["panel_index"] == panel_index
+                    for source_index in page["source_row_indices"]
+                ]
+                self.assertEqual(presented, list(range(len(rows))), stem)
+            record = linkage[stem]
+            self.assertEqual(record["source_row_count"], len(rows))
+            self.assertEqual(record["source_column_count"], len(source_fields))
+            self.assertEqual(record["preview_dpi"], 300)
+            self.assertEqual(record["rendered_page_count"], len(record["png_previews"]))
+            self.assertEqual(
+                set(record["presentation_columns"]) | set(record["source_only_columns"]),
+                set(source_fields),
+            )
+            pdf = self.output / record["pdf"]
+            self.assertGreater(pdf.stat().st_size, 1000)
+            for relative in record["png_previews"]:
+                preview = self.output / relative
+                with Image.open(preview) as image:
+                    self.assertGreaterEqual(image.width, 3000, preview.name)
+                    self.assertGreaterEqual(image.height, 2200, preview.name)
+                    self.assertGreater(sum(ImageStat.Stat(image.convert("RGB")).var), 1.0)
+
+    def test_professor_handoff_package_is_not_part_of_the_repository(self):
+        self.assertFalse((ROOT / "deliverables").exists())
+        self.assertFalse((ROOT / "professor_handoff.py").exists())
+        self.assertFalse(list(ROOT.glob("**/*professor*handoff*")))
+        self.assertFalse(list((self.output / "tables").glob("*.docx")))
+        self.assertFalse(list((self.output / "tables").glob("*.xlsx")))
+        self.assertFalse(list((self.output / "tables").glob("*_word.tsv")))
 
     def test_unavailable_parameter_consequences_are_parameter_specific(self):
         rows = {
@@ -115,6 +162,26 @@ class PaperPipelineTests(unittest.TestCase):
         self.assertIn("removal of downstream H2O2", rows["compartment-specific H2O2 loss rate"]["why_needed"])
         self.assertIn("compartment-level H2O2", rows["compartment-specific H2O2 loss rate"]["conclusion_prohibited"])
         self.assertTrue((self.output / "metadata" / "output_checksums.csv").is_file())
+
+    def test_validation_table_names_actual_observables(self):
+        rows = {
+            row["dataset_id"]: row["observable"]
+            for row in self._rows(
+                "table08_experimental_validation_evidence", "tables"
+            )
+        }
+        self.assertEqual(
+            rows["beef_heart_submitochondrial_superoxide"],
+            "superoxide proxy rate",
+        )
+        self.assertEqual(
+            rows["PC3_intracellular_H2O2"],
+            "hydrogen peroxide (H2O2)",
+        )
+        self.assertEqual(
+            rows["H9c2_MitoSOX"],
+            "relative MitoSOX fluorescence (oxidant proxy)",
+        )
 
     def test_every_rendered_figure_is_nonblank_and_has_source_csv(self):
         figures = sorted((self.output / "figures").glob("*.png"))
@@ -264,10 +331,52 @@ class PaperPipelineTests(unittest.TestCase):
         solver = self._rows("table06_independent_solver_validation", "tables")
         self.assertTrue(all(row["passes"] == "True" for row in solver))
         self.assertLess(max(float(row["worst_absolute_error"]) for row in solver), 3e-9)
+        self.assertTrue(all(float(row["normalization_scale"]) == 1.0 for row in solver))
+        self.assertTrue(all("data-derived" in row["near_zero_policy"] for row in solver))
+        self.assertNotIn("worst_relative_error", solver[0])
         circuit = self._rows("table07_circuit_validation", "tables")
         self.assertTrue(all(row["passes"] == "True" for row in circuit))
         self.assertEqual(circuit[0]["qiskit_execution_status"], "executed")
         self.assertTrue((self.output / "figures" / "figure11_circuit_validation.png").is_file())
+
+    def test_runtime_benchmark_is_matched_bounded_and_phase_explicit(self):
+        rows = self._rows("table10_runtime_memory_benchmark", "tables")
+        phases = {row["phase"] for row in rows}
+        self.assertTrue({
+            "circuit construction", "transpilation", "execution", "sampling",
+            "post-processing", "hardware execution",
+        }.issubset(phases))
+        coherent_execution = [
+            row for row in rows
+            if row["workload_group"] == "matched coherent statevector"
+            and row["phase"] == "execution" and row["status"] == "measured"
+        ]
+        self.assertEqual(len(coherent_execution), 2)
+        self.assertEqual(len({row["matched_problem"] for row in coherent_execution}), 1)
+        open_execution = [
+            row for row in rows
+            if row["workload_group"] == "matched classical open system"
+            and row["phase"] == "execution"
+        ]
+        self.assertEqual(len(open_execution), 2)
+        self.assertEqual(len({row["matched_problem"] for row in open_execution}), 1)
+        self.assertTrue(all("no speed" in row["interpretation"] for row in rows))
+
+    def test_critique_items_are_all_traced_without_implied_acceptance(self):
+        rows = self._rows("table09_requirements_traceability", "tables")
+        expected = {f"A{number}" for number in range(1, 16)} | {
+            f"B{number}" for number in range(1, 8)
+        }
+        self.assertEqual({row["requirement_id"] for row in rows}, expected)
+        allowed = {
+            "corrected with evidence", "superseded by corrected model",
+            "withdrawn with justification", "partially addressed", "unresolved",
+        }
+        self.assertTrue(all(row["disposition"] in allowed for row in rows))
+        self.assertTrue(all("correspondence unavailable" in row["request_attribution"] for row in rows))
+        withdrawn = [row for row in rows if row["disposition"] == "withdrawn with justification"]
+        self.assertTrue(withdrawn)
+        self.assertTrue(all("not reviewer acceptance" in row["remaining_limitation"] for row in withdrawn))
 
     def test_manifest_hashes_resolve_and_overwrite_is_explicit(self):
         manifest = json.loads((self.output / "metadata" / "run_manifest.json").read_text())

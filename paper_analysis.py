@@ -15,6 +15,7 @@ from pathlib import Path
 import platform
 import shlex
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -48,6 +49,7 @@ from sensitivity_analysis import (
     run_selectivity_sweep,
     run_sweep,
 )
+from table_rendering import render_table_from_csv
 from spin_chemistry import (
     EncounterParameters,
     P_DOUBLET,
@@ -86,6 +88,225 @@ SCIENTIFIC_LIMITATIONS = (
     "quantum advantage, entanglement, magnetic control, or quantitative biological "
     "ROS prediction is claimed."
 )
+
+TABLE_PRESENTATION = {
+    "table01_original_versus_corrected_model": {
+        "number": 1,
+        "title": "Original versus corrected model",
+        "note": "The comparison identifies the scientific effect of each model correction.",
+        "panels": [[
+            "model_element", "original_implementation", "corrected_implementation",
+            "scientific_consequence",
+        ]],
+    },
+    "table02_parameter_provenance": {
+        "number": 2,
+        "title": "Parameter provenance",
+        "note": "Each parameter retains its stated conditions, evidence status, and permitted use.",
+        "panels": [
+            ["symbol", "definition", "value_or_range", "unit", "status"],
+            ["symbol", "species", "charge_state", "environment", "temperature", "pH"],
+            [
+                "symbol", "method", "source", "uncertainty", "limitations",
+                "permitted_use", "code_location",
+            ],
+        ],
+        "panel_titles": [
+            "Parameter identity", "Chemical conditions", "Evidence and permitted use",
+        ],
+    },
+    "table03_unavailable_parameters_and_consequences": {
+        "number": 3,
+        "title": "Unavailable parameters and consequences",
+        "note": "Unavailable inputs remain sensitivity coordinates and limit the conclusions that can be drawn.",
+        "panels": [
+            [
+                "missing_parameter", "why_needed", "status",
+                "sensitivity_coordinate_allowed", "range_status",
+            ],
+            [
+                "missing_parameter", "allowed_treatment", "conclusion_prohibited",
+                "source_of_status",
+            ],
+        ],
+        "panel_titles": ["Evidence status", "Allowed treatment and limitation"],
+    },
+    "table04_baseline_results": {
+        "number": 4,
+        "title": "Finite-time baseline results",
+        "note": (
+            "The five initial-state benchmarks use the declared baseline sensitivity "
+            "scenario at t = 8/kref. Unresolved survival is reported explicitly; these "
+            "finite-time values are not asymptotic yields."
+        ),
+        "panels": [[
+            "initial_state_definition", "p_doublet_initial",
+            "doublet_reaction_yield_per_encounter",
+            "quartet_reaction_yield_per_encounter",
+            "primary_superoxide_yield_per_encounter", "escape_yield_per_encounter",
+            "survival_probability", "probability_balance",
+        ]],
+    },
+    "table05_controls_and_extrema": {
+        "number": 5,
+        "title": "Controls and selected grid extrema",
+        "note": "The extrema describe the sampled computational grid only.",
+        "panels": [
+            [
+                "summary_type", "source_grid", "scenario_id", "control_label",
+                "initial_state_definition",
+            ],
+            [
+                "summary_type", "mixing_over_reference",
+                "radical_relaxation_over_reference", "escape_over_reference",
+                "kq_over_kd", "primary_superoxide_yield_per_encounter",
+                "escape_yield_per_encounter", "unresolved_probability",
+            ],
+        ],
+        "panel_titles": ["Scenario identity", "Coordinates and results"],
+    },
+    "table06_independent_solver_validation": {
+        "number": 6,
+        "title": "Independent solver validation",
+        "note": (
+            "Worst discrepancies compare the matrix exponential with the adaptive "
+            "Dormand-Prince solver. The normalized metric divides by the fixed unit "
+            "scale for bounded dimensionless quantities, never by a near-zero result."
+        ),
+        "panels": [[
+            "observable", "worst_absolute_error",
+            "worst_unit_scale_normalized_error", "normalization_scale",
+            "near_zero_policy", "declared_absolute_tolerance", "passes",
+            "reference_solver", "independent_solver", "scope",
+        ]],
+    },
+    "table07_circuit_validation": {
+        "number": 7,
+        "title": "Circuit validation",
+        "note": "Circuit checks cover coherent statevector execution and six state to eight state embedding only.",
+        "panels": [
+            [
+                "metric", "validation_layer", "value", "tolerance", "passes",
+                "qiskit_execution_status", "status",
+            ],
+            [
+                "metric", "seed", "qubits", "basis_order", "physical_indices",
+                "duration_s", "input_state_origin", "state_preparation",
+                "implementation_type",
+            ],
+            [
+                "metric", "measurement", "post_processing", "scope", "reason",
+                "does_not_validate",
+            ],
+        ],
+        "panel_titles": [
+            "Validation metrics", "Executed coherent calculation",
+            "Observables and exclusions",
+        ],
+    },
+    "table08_experimental_validation_evidence": {
+        "number": 8,
+        "title": "Experimental validation evidence",
+        "note": "The records distinguish exact chemical systems and direct validation eligibility.",
+        "panels": [
+            [
+                "dataset_id", "exact_chemical_or_biological_system", "observable",
+                "conditions", "reported_result", "unit",
+            ],
+            [
+                "dataset_id", "method", "source", "usable_for_direct_validation",
+                "limitations",
+            ],
+        ],
+        "panel_titles": ["System and reported result", "Method and validation use"],
+    },
+    "table09_requirements_traceability": {
+        "number": 9,
+        "title": "Requirements and critique traceability",
+        "note": (
+            "The critique checklist is traced item by item. Except where the critique "
+            "itself attributes a request to Reviewer 1, original reviewer correspondence "
+            "was unavailable; withdrawn requests are not treated as reviewer acceptance."
+        ),
+        "panels": [
+            [
+                "requirement_id", "criticism", "request_attribution", "disposition",
+            ],
+            [
+                "requirement_id", "repository_evidence", "remaining_limitation",
+            ],
+            [
+                "requirement_id", "exact_file", "exact_code_object",
+                "figure_or_table", "test", "evidence_status",
+            ],
+        ],
+        "panel_titles": [
+            "Criticism and disposition", "Evidence and remaining limitation",
+            "Implementation and verification",
+        ],
+    },
+    "table10_runtime_memory_benchmark": {
+        "number": 10,
+        "title": "Bounded runtime and memory benchmark",
+        "note": (
+            "Timings are environment-specific medians for the retained six-state model, "
+            "not a scaling or speed-advantage claim. Process peak RSS is a whole-process "
+            "high-water mark; theoretical array bytes are lower-bound storage estimates."
+        ),
+        "panels": [
+            [
+                "workload_group", "method", "phase", "status", "repetitions",
+                "warmup_repetitions", "median_time_ms", "minimum_time_ms",
+                "maximum_time_ms",
+            ],
+            [
+                "workload_group", "method", "matched_problem",
+                "timing_boundary", "measured_process_peak_rss_mib",
+                "measured_peak_rss_limitation", "theoretical_core_array_bytes",
+                "theoretical_storage_scope",
+            ],
+            [
+                "workload_group", "method", "hardware", "software",
+                "transpilation_status", "hardware_execution_status",
+                "sampling_status", "interpretation",
+            ],
+        ],
+        "panel_titles": [
+            "Timing", "Memory measurement and estimate", "Execution context",
+        ],
+    },
+}
+
+COLUMN_LABELS = {
+    "pH": "pH",
+    "p_doublet_initial": "Initial doublet probability",
+    "kq_over_kd": "kQ divided by kD",
+    "value_or_range": "Value or range",
+    "charge_state": "Charge state",
+    "code_location": "Code location",
+    "source_of_status": "Status source",
+    "exact_chemical_or_biological_system": "Exact chemical or biological system",
+    "figure_or_table": "Figure or table",
+    "research_topic_or_output": "Research topic or output",
+    "qiskit_execution_status": "Qiskit execution status",
+    "worst_absolute_error": "Worst absolute error (dimensionless)",
+    "worst_unit_scale_normalized_error": "Worst unit-scale-normalized error",
+    "normalization_scale": "Fixed normalization scale",
+    "declared_absolute_tolerance": "Absolute tolerance (dimensionless)",
+    "p_doublet_initial": "Initial doublet probability",
+    "doublet_reaction_yield_per_encounter": "Doublet reaction yield (per encounter)",
+    "quartet_reaction_yield_per_encounter": "Quartet reaction yield (per encounter)",
+    "primary_superoxide_yield_per_encounter": "Primary superoxide (radical eq. per encounter)",
+    "escape_yield_per_encounter": "Escape yield (per encounter)",
+    "survival_probability": "Unresolved survival probability",
+    "probability_balance": "Reaction + escape + survival",
+    "duration_s": "Duration (s; illustrative conversion)",
+    "median_time_ms": "Median time (ms)",
+    "minimum_time_ms": "Minimum time (ms)",
+    "maximum_time_ms": "Maximum time (ms)",
+    "measured_process_peak_rss_mib": "Process peak RSS (MiB)",
+    "theoretical_core_array_bytes": "Core-array estimate (bytes)",
+}
 
 
 def _jsonable(value: Any) -> Any:
@@ -127,7 +348,10 @@ def _source_metadata(config: Path, provenance: Path) -> dict[str, Any]:
         ROOT / "spin_chemistry.py",
         ROOT / "sensitivity_analysis.py",
         ROOT / "plotting.py",
+        ROOT / "table_rendering.py",
         Path(__file__),
+        ROOT / "requirements.txt",
+        ROOT / ".github" / "workflows" / "tests.yml",
         ROOT / "tests" / "test_spin_chemistry.py",
         ROOT / "tests" / "test_paper_pipeline.py",
         config,
@@ -223,7 +447,7 @@ def write_markdown(
     fields = fields or _fieldnames(rows)
 
     def clean(value: Any) -> str:
-        return str(_cell(value)).replace("|", "\\|").replace("\n", " ")
+        return _display_cell(value).replace("|", "\\|").replace("\n", " ")
 
     lines = [
         "| " + " | ".join(fields) + " |",
@@ -235,6 +459,49 @@ def write_markdown(
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def _display_cell(value: Any) -> str:
+    """Return a compact human-readable value without JSON or CSV punctuation."""
+    if value is None:
+        return ""
+    if isinstance(value, (bool, np.bool_)):
+        return "Yes" if bool(value) else "No"
+    if isinstance(value, (float, np.floating)):
+        number = float(value)
+        if not np.isfinite(number):
+            return "n.a."
+        if number == 0:
+            return "0"
+        if abs(number) >= 1e4 or abs(number) < 1e-3:
+            return f"{number:.3e}"
+        return f"{number:.6g}"
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_column_label(str(key))}: {_display_cell(item)}"
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_display_cell(item) for item in value)
+    return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def _column_label(field: str) -> str:
+    if field in COLUMN_LABELS:
+        return COLUMN_LABELS[field]
+    words = field.replace("_s^-1", " rate per second").replace("_m", " molar")
+    return words.replace("_", " ").capitalize()
+
+
+def _presentation_fields(spec: dict[str, Any]) -> list[str]:
+    fields: list[str] = []
+    for panel in spec["panels"]:
+        for field in panel:
+            if field not in fields:
+                fields.append(field)
+    return fields
 
 
 def _augment_rows(rows: list[dict], metadata: dict[str, Any], config: Path, provenance: Path) -> None:
@@ -280,9 +547,10 @@ def _model_overview_rows() -> list[dict]:
 
 
 def _model_comparison_rows() -> list[dict]:
-    """Structured source for Table 1; no result values are typed into Word."""
+    """Structured source for Table 1; rendered values come from its saved CSV."""
     return [
         {"model_element": "Physical species", "original_implementation": "Generic two-spin or semiconductor shuttling model", "corrected_implementation": "Doxorubicin/adriamycin semiquinone with S=1/2 and ground-state O2 with S=1", "scientific_consequence": "The chemistry is tied to the stated redox pair."},
+        {"model_element": "Species multiplicity and scope", "original_implementation": "Species and multiplicities were not consistently separated", "corrected_implementation": "Closed-shell AQ/H2O2: 0 unpaired; semiquinone/superoxide: 1, doublet; ground-state O2: 2, triplet; singlet oxygen excluded", "scientific_consequence": "The retained model cannot be read as a singlet-oxygen sensitization mechanism."},
         {"model_element": "Spin dimensions", "original_implementation": "Two qubits; dimension 4", "corrected_implementation": "Spin-1/2 x spin-1 electronic space; dimension 6", "scientific_consequence": "All physical electronic states are retained."},
         {"model_element": "Manifold classification", "original_implementation": "Singlet/triplet or basis-parity labels", "corrected_implementation": "Doublet (dimension 2) and quartet (dimension 4) projectors", "scientific_consequence": "Projectors follow angular-momentum addition."},
         {"model_element": "Initial states", "original_implementation": "Bell states or computational-basis preparations", "corrected_implementation": "I6/6, PD/2, PQ/4, and bounded pD mixtures", "scientific_consequence": "All cases are computational benchmarks; no chemical preparation is asserted."},
@@ -294,6 +562,8 @@ def _model_comparison_rows() -> list[dict]:
         {"model_element": "Hydrogen peroxide", "original_implementation": "Mapped directly from a spin population", "corrected_implementation": "Separate HO2/O2-minus speciation and dismutation with two radicals per H2O2", "scientific_consequence": "Spin populations are not treated as H2O2."},
         {"model_element": "Rate units", "original_implementation": "Bulk and encounter rates could be conflated", "corrected_implementation": "Bulk M^-1 s^-1 constants remain separate from encounter s^-1 rates", "scientific_consequence": "No unsupported dimensional conversion is made."},
         {"model_element": "Quantum-circuit role", "original_implementation": "Circuit outcomes interpreted as chemistry", "corrected_implementation": "Three-qubit coherent embedding consistency check", "scientific_consequence": "The circuit does not validate open-system chemistry or quantum advantage."},
+        {"model_element": "Classical/circuit boundary", "original_implementation": "Classical and circuit workloads could be presented as interchangeable", "corrected_implementation": "Classical model includes reaction, escape, relaxation, and yields; circuit executes only one supplied statevector and dense coherent unitary", "scientific_consequence": "Only the coherent statevector workload is used for the bounded NumPy/Qiskit comparison."},
+        {"model_element": "Endpoint interpretation", "original_implementation": "Finite-time results risked being read as final chemical yields", "corrected_implementation": "Finite-time reaction and escape yields are reported with unresolved survival", "scientific_consequence": "No asymptotic-yield claim is made without endpoint convergence."},
         {"model_element": "Interpretation", "original_implementation": "Risk of direct biological or cardiotoxicity extrapolation", "corrected_implementation": "Conditional dimensionless sensitivity analysis with evidence-gated inputs", "scientific_consequence": "Cellular ROS and clinical outcomes remain outside scope."},
     ]
 
@@ -453,16 +723,32 @@ def _controls(reference_rate: float) -> list[dict]:
         rows.append({
             "scenario_id": scenario_id, "control_label": label,
             "initial_state": state, "p_doublet_initial": result["p_doublet_initial"],
+            "initial_state_definition": {
+                "unpolarized": "unpolarized I6/6",
+                "doublet": "doublet-manifold mixture PD/2",
+                "quartet": "quartet-manifold mixture PQ/4",
+            }[state],
             "reference_rate_s^-1": reference_rate, "duration_over_reference": 8.0,
             "duration_s": 8/reference_rate, "field_t": parameters.field_t,
             "g_radical": parameters.g_radical, "g_oxygen": parameters.g_oxygen,
             "exchange_rad_s": parameters.exchange_rad_s,
             "local_mixing_proxy_rad_s": parameters.local_field_proxy_rad_s,
+            "mixing_over_reference": float(
+                np.linalg.norm(parameters.local_field_proxy_rad_s) / reference_rate
+            ),
             "radical_relaxation_s^-1": parameters.radical_relaxation_s,
+            "radical_relaxation_over_reference": (
+                parameters.radical_relaxation_s / reference_rate
+            ),
             "oxygen_relaxation_s^-1": parameters.oxygen_relaxation_s,
             "k_doublet_s^-1": parameters.k_doublet_s,
             "k_quartet_s^-1": parameters.k_quartet_s,
             "k_escape_s^-1": parameters.k_escape_s,
+            "escape_over_reference": parameters.k_escape_s / reference_rate,
+            "kq_over_kd": (
+                parameters.k_quartet_s / parameters.k_doublet_s
+                if parameters.k_doublet_s else None
+            ),
             "dq_commutator_frobenius": commutator,
             "dq_commutator_normalization": "divided by k_ref",
             "can_coherently_mix_dq": commutator > 1e-12,
@@ -569,22 +855,15 @@ def _solver_validation(reference_rate: float, samples: int) -> tuple[list[dict],
     summary = []
     for observable, (field, tolerance) in metric_specs.items():
         absolute = max(float(row[field]) for row in rows)
-        # Relative errors use the largest matching physical observable as scale.
-        if "density" in observable:
-            scale = max(float(np.max(np.abs(matrix))) for matrix in ref["density_matrices"])
-        elif "probability_accounting" in observable:
-            scale = 1.0
-        else:
-            scale = max(
-                1e-15,
-                float(np.max(np.abs(ref["survival"])))
-                if observable == "survival"
-                else 1.0,
-            )
+        # Every reported quantity is dimensionless and bounded on a unit scale.
+        # This deliberately avoids a data-derived denominator near zero.
+        scale = 1.0
         summary.append({
             "observable": observable,
             "worst_absolute_error": absolute,
-            "worst_relative_error": absolute/scale,
+            "worst_unit_scale_normalized_error": absolute / scale,
+            "normalization_scale": scale,
+            "near_zero_policy": "fixed unit scale; no data-derived denominator",
             "declared_absolute_tolerance": tolerance,
             "passes": absolute <= tolerance,
             "reference_solver": ref["numerical_method"],
@@ -592,6 +871,267 @@ def _solver_validation(reference_rate: float, samples: int) -> tuple[list[dict],
             "scope": "numerical implementation agreement, not physical validation",
         })
     return rows, summary
+
+
+def _process_peak_rss_mib() -> float | None:
+    """Return whole-process peak RSS in MiB when the platform exposes it."""
+    try:
+        import resource
+
+        peak = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    except (ImportError, OSError, ValueError):
+        return None
+    # macOS reports bytes; Linux and the GitHub Actions runner report KiB.
+    peak_bytes = peak if sys.platform == "darwin" else peak * 1024.0
+    return peak_bytes / (1024.0**2)
+
+
+def _timed_operation(operation, repetitions: int = 7, warmups: int = 2) -> dict[str, Any]:
+    for _ in range(warmups):
+        operation()
+    elapsed_ms = []
+    for _ in range(repetitions):
+        start = time.perf_counter_ns()
+        operation()
+        elapsed_ms.append((time.perf_counter_ns() - start) / 1e6)
+    return {
+        "repetitions": repetitions,
+        "warmup_repetitions": warmups,
+        "median_time_ms": statistics.median(elapsed_ms),
+        "minimum_time_ms": min(elapsed_ms),
+        "maximum_time_ms": max(elapsed_ms),
+        "measured_process_peak_rss_mib": _process_peak_rss_mib(),
+    }
+
+
+def _runtime_memory_benchmark(
+    reference_rate: float, seed: int, execute_circuit: bool, metadata: dict[str, Any]
+) -> list[dict]:
+    """Benchmark only matched retained six-state calculations, never scaling."""
+    hardware = (
+        f"{platform.system()} {platform.machine()}; logical CPUs={os.cpu_count()}; "
+        f"{platform.platform()}"
+    )
+    software = (
+        f"Python {platform.python_version()}; NumPy {np.__version__}; "
+        f"Qiskit {metadata['qiskit_version']}"
+    )
+    common = {
+        "hardware": hardware,
+        "software": software,
+        "measured_peak_rss_limitation": (
+            "whole Python-process high-water mark; not incremental or attributable "
+            "to one operation"
+        ),
+        "transpilation_status": "not applicable unless stated",
+        "hardware_execution_status": "not used",
+        "sampling_status": "not used; exact statevectors and expectations",
+        "interpretation": (
+            "bounded reproducibility benchmark only; no speed, efficiency, scaling, "
+            "or quantum-advantage inference"
+        ),
+    }
+
+    coherent_parameters = EncounterParameters(
+        field_t=(0, 0, 1e-4), g_radical=2.0035, g_oxygen=2.0023,
+        exchange_rad_s=2 * reference_rate, dipolar_rad_s=0.1 * reference_rate,
+        local_field_proxy_rad_s=(0.3 * reference_rate, 0, 0),
+    )
+    duration = 1 / reference_rate
+    energies, vectors = np.linalg.eigh(hamiltonian(coherent_parameters))
+    unitary6 = (vectors * np.exp(-1j * energies * duration)) @ vectors.conj().T
+    rng = np.random.default_rng(seed)
+    state6 = rng.normal(size=6) + 1j * rng.normal(size=6)
+    state6 /= np.linalg.norm(state6)
+    physical = np.array([0, 1, 2, 4, 5, 6])
+    unused = np.array([3, 7])
+    unitary8 = np.eye(8, dtype=complex)
+    unitary8[np.ix_(physical, physical)] = unitary6
+    state8 = np.zeros(8, dtype=complex)
+    state8[physical] = state6
+    pd8 = np.zeros((8, 8), dtype=complex)
+    pq8 = np.zeros((8, 8), dtype=complex)
+    pd8[np.ix_(physical, physical)] = P_DOUBLET
+    pq8[np.ix_(physical, physical)] = P_QUARTET
+
+    rows: list[dict[str, Any]] = []
+
+    def add_timed(
+        workload_group: str,
+        method: str,
+        phase: str,
+        matched_problem: str,
+        timing_boundary: str,
+        theoretical_bytes: int,
+        theoretical_scope: str,
+        operation,
+        **overrides: Any,
+    ) -> None:
+        rows.append({
+            "workload_group": workload_group,
+            "method": method,
+            "phase": phase,
+            "status": "measured",
+            "matched_problem": matched_problem,
+            "timing_boundary": timing_boundary,
+            "theoretical_core_array_bytes": theoretical_bytes,
+            "theoretical_storage_scope": theoretical_scope,
+            **common,
+            **_timed_operation(operation),
+            **overrides,
+        })
+
+    def add_not_applicable(method: str, phase: str, reason: str) -> None:
+        rows.append({
+            "workload_group": "matched coherent statevector",
+            "method": method,
+            "phase": phase,
+            "status": "not applicable",
+            "repetitions": 0,
+            "warmup_repetitions": 0,
+            "median_time_ms": None,
+            "minimum_time_ms": None,
+            "maximum_time_ms": None,
+            "matched_problem": (
+                "same supplied normalized six-state vector, dense U=exp(-iHt), "
+                f"t=1/kref={duration:.6g} s"
+            ),
+            "timing_boundary": reason,
+            "measured_process_peak_rss_mib": None,
+            "theoretical_core_array_bytes": 0,
+            "theoretical_storage_scope": "not applicable",
+            **common,
+        })
+
+    coherent_problem = (
+        "same supplied normalized six-state vector, dense U=exp(-iHt), "
+        f"t=1/kref={duration:.6g} s"
+    )
+    add_timed(
+        "matched coherent statevector",
+        "NumPy dense six-state propagation",
+        "execution",
+        coherent_problem,
+        "precomputed 6x6 unitary multiplied by supplied 6-element statevector",
+        unitary6.nbytes + 2 * state6.nbytes,
+        "one 6x6 complex unitary plus input and output statevectors",
+        lambda: unitary6 @ state6,
+        transpilation_status="not applicable",
+    )
+
+    capability = independent_circuit_capability()
+    if execute_circuit and capability["available"]:
+        from qiskit import QuantumCircuit
+        from qiskit.circuit.library import UnitaryGate
+        from qiskit.quantum_info import Statevector
+
+        def construct_circuit():
+            circuit = QuantumCircuit(3)
+            circuit.append(UnitaryGate(unitary8, label="exp(-iH6t) embedded"), [0, 1, 2])
+            return circuit
+
+        add_timed(
+            "matched coherent statevector", "Qiskit Statevector dense unitary",
+            "circuit construction", coherent_problem,
+            "construct QuantumCircuit and append precomputed 8x8 UnitaryGate",
+            unitary8.nbytes,
+            "embedded 8x8 complex unitary only; excludes Qiskit object overhead",
+            construct_circuit,
+        )
+        circuit = construct_circuit()
+        add_timed(
+            "matched coherent statevector", "Qiskit Statevector dense unitary",
+            "execution", coherent_problem,
+            "Statevector(input).evolve(preconstructed circuit); no transpilation or shots",
+            unitary8.nbytes + 2 * state8.nbytes,
+            "embedded unitary plus input and output 8-element statevectors",
+            lambda: Statevector(state8).evolve(circuit).data,
+        )
+        simulated = Statevector(state8).evolve(circuit).data
+        add_timed(
+            "matched coherent statevector", "Qiskit Statevector dense unitary",
+            "post-processing", coherent_problem,
+            "compute D/Q expectations and unused-state leakage from exact statevector",
+            simulated.nbytes + pd8.nbytes + pq8.nbytes,
+            "output statevector plus embedded D/Q projector arrays",
+            lambda: (
+                np.vdot(simulated, pd8 @ simulated),
+                np.vdot(simulated, pq8 @ simulated),
+                np.sum(np.abs(simulated[unused]) ** 2),
+            ),
+        )
+        add_not_applicable(
+            "Qiskit Statevector dense unitary", "transpilation",
+            "not applicable: Statevector evolves the inserted dense unitary directly",
+        )
+        add_not_applicable(
+            "Qiskit Statevector dense unitary", "sampling",
+            "not applicable: no finite-shot measurement is executed",
+        )
+        add_not_applicable(
+            "quantum hardware", "hardware execution",
+            "not applicable: no quantum hardware is used",
+        )
+    else:
+        reason = (
+            "not requested by pipeline"
+            if not execute_circuit else str(capability["reason"])
+        )
+        for phase in (
+            "circuit construction", "execution", "post-processing",
+            "transpilation", "sampling", "hardware execution",
+        ):
+            add_not_applicable("Qiskit Statevector dense unitary", phase, reason)
+
+    open_parameters = EncounterParameters(
+        field_t=(0, 0, 2e-6), g_radical=2.0035, g_oxygen=2.0023,
+        exchange_rad_s=0.4 * reference_rate,
+        dipolar_rad_s=0.2 * reference_rate, dipolar_axis=(1, 1, 2),
+        oxygen_zfs_d_rad_s=0.15 * reference_rate,
+        oxygen_zfs_e_rad_s=0.07 * reference_rate,
+        local_field_proxy_rad_s=(1.7 * reference_rate, 0.3 * reference_rate, 0),
+        radical_relaxation_s=0.3 * reference_rate,
+        oxygen_relaxation_s=0.2 * reference_rate,
+        k_doublet_s=reference_rate,
+        k_quartet_s=0.23 * reference_rate,
+        k_escape_s=0.7 * reference_rate,
+    )
+    open_duration = 4 / reference_rate
+    open_samples = 31
+    open_problem = (
+        "same 39-component open-system IVP; mixture pD=0.75; matched H, "
+        f"reaction, relaxation, escape, {open_samples} output times, t=4/kref"
+    )
+    complex_bytes = np.dtype(complex).itemsize
+    add_timed(
+        "matched classical open system",
+        "constant-generator matrix exponential",
+        "execution",
+        open_problem,
+        "complete solver call including generator construction, propagation, and outputs",
+        (39 * 39 + open_samples * 39) * complex_bytes,
+        "39x39 generator plus 39-component stored trajectory; lower bound",
+        lambda: propagate_encounter_reference(
+            open_parameters, open_duration, "mixture", open_samples, 0.75
+        ),
+        transpilation_status="not applicable",
+    )
+    add_timed(
+        "matched classical open system",
+        "adaptive Dormand-Prince RK5(4)",
+        "execution",
+        open_problem,
+        "complete solver call including adaptive integration and output assembly",
+        (open_samples * 39 + 8 * 39) * complex_bytes,
+        "stored 39-component trajectory plus eight stage/state vectors; lower bound",
+        lambda: propagate_encounter_independent(
+            open_parameters, open_duration, "mixture", open_samples, 0.75,
+            atol=TOLERANCES["independent_atol"],
+            rtol=TOLERANCES["independent_rtol"],
+        ),
+        transpilation_status="not applicable",
+    )
+    return rows
 
 
 def _downstream_data(authority: dict, samples: int) -> list[dict]:
@@ -821,8 +1361,20 @@ def _validation_dataset_rows(authority: dict) -> list[dict]:
     rows = []
     for dataset_id, record in authority["validation_datasets"].items():
         values = {key: value for key, value in record.items() if key not in reserved}
-        exact_system = record.get("preparation") or record.get("environment") or dataset_id
-        observable = dataset_id.split("_")[0].replace("h2o2", "H2O2").replace("superoxide", "superoxide")
+        exact_system = (
+            record.get("preparation")
+            or record.get("environment")
+            or dataset_id.replace("_", " ")
+        )
+        identifier = dataset_id.lower()
+        if "h2o2" in identifier:
+            observable = "hydrogen peroxide (H2O2)"
+        elif "mitosox" in identifier:
+            observable = "relative MitoSOX fluorescence (oxidant proxy)"
+        elif "superoxide" in identifier or "negative_control" in identifier:
+            observable = "superoxide proxy rate"
+        else:
+            observable = "reported ROS-related observable"
         conditions = "; ".join(
             f"{label}={value}" for label, value in (
                 ("dose", record.get("dose")),
@@ -854,56 +1406,110 @@ def _validation_dataset_rows(authority: dict) -> list[dict]:
 
 
 def _traceability_rows() -> list[dict]:
-    topics = [
-        (1, "Semiquinone g and hyperfine", "configs/doxorubicin_parameters.json; spin_chemistry.py", "hamiltonian; validate_authority_bundle", "Figure 7; Table 2", "InitialStateAndHamiltonianTests; AuthorityAndModeTests", "bounded_complete", "isotropic g only; hyperfine tensors unavailable"),
-        (2, "O2 electronic parameters", "configs/doxorubicin_parameters.json", "active_model.encounter.g_oxygen; oxygen_zfs_d_rad_s; oxygen_zfs_e_rad_s", "Tables 2-3", "AuthorityAndModeTests", "evidence_review_complete", "encounter tensors unavailable"),
-        (3, "Spin relaxation", "spin_chemistry.py", "_lindblad; propagate_encounter_reference; propagate_encounter_independent", "Figures 5, 7, 8", "EncounterDynamicsTests; IndependentEncounterValidationTests", "framework_complete", "T1 and T2 unavailable"),
-        (4, "Bulk SQ/O2 kinetics", "spin_chemistry.py; configs/parameter_provenance.csv", "evaluate_bulk_superoxide_rate", "Figure 10; Table 2", "AuthorityAndModeTests; PaperPipelineTests", "condition_specific_complete", "not encounter kD or kQ"),
-        (5, "Encounter coherence", "spin_chemistry.py", "hamiltonian; propagate_encounter_reference", "Figures 1-2", "EncounterDynamicsTests", "evidence_unavailable", "no measured coherent encounter"),
-        (6, "D/Q reaction selectivity", "spin_chemistry.py; sensitivity_analysis.py", "P_DOUBLET; P_QUARTET; run_selectivity_sweep", "Figures 3, 4, 6", "SpinAlgebraTests; PaperPipelineTests", "sensitivity_complete", "no physical ordering known"),
-        (7, "Escape and encounter lifetime", "spin_chemistry.py; sensitivity_analysis.py", "EncounterParameters.k_escape_s; run_mixing_escape_sweep", "Figures 4, 7; Table 5", "EncounterDynamicsTests", "sensitivity_complete", "physical value unavailable"),
-        (8, "Exchange dipolar and geometry", "spin_chemistry.py", "EncounterParameters; hamiltonian", "Figure 7; Table 3", "InitialStateAndHamiltonianTests", "framework_complete", "magnitudes and geometry unavailable"),
-        (9, "Downstream speciation and dismutation", "spin_chemistry.py", "downstream_ros_species_resolved", "Figure 9", "StagedChemistryTests", "bounded_complete", "fixed pH and constant SOD"),
-        (10, "Experimental ROS validation", "configs/doxorubicin_parameters.json", "validation_datasets", "Table 8", "AuthorityAndModeTests", "catalog_complete", "datasets incomparable for fitting"),
-        (11, "Independent numerical behavior", "spin_chemistry.py", "propagate_encounter_reference; propagate_encounter_independent", "Figure 8; Table 6", "IndependentEncounterValidationTests", "complete", "numerical, not physical validation"),
-        (12, "Circuit consistency", "spin_chemistry.py", "execute_three_qubit_unitary_circuit", "Figure 11; Table 7", "CoherentValidationTests", "conditional_complete", "coherent simulator and embedding only"),
-    ]
-    outputs = [
-        ("A", "parameter provenance", "configs/parameter_provenance.csv", "_provenance_rows", "Table 2", "AuthorityAndModeTests"),
-        ("B", "Hamiltonian and spin algebra", "spin_chemistry.py", "hamiltonian; P_DOUBLET; P_QUARTET", "Figure 1; Table 1", "SpinAlgebraTests; InitialStateAndHamiltonianTests"),
-        ("C", "initial-state benchmarks", "spin_chemistry.py", "initial_density", "Figures 2-3; Table 4", "InitialStateAndHamiltonianTests"),
-        ("D", "kQ/kD analysis", "sensitivity_analysis.py", "run_mixing_escape_sweep; run_selectivity_sweep", "Figures 4 and 6", "PaperPipelineTests"),
-        ("E", "reaction network", "spin_chemistry.py", "primary_superoxide_formation; downstream_ros_species_resolved", "Figures 1 and 9", "StagedChemistryTests"),
-        ("F", "supported claims", "metadata/paper_results_summary.md", "main", "Generated results summary", "PaperPipelineTests"),
-        ("G", "unsupported claims", "metadata/run_manifest.json", "SCIENTIFIC_LIMITATIONS", "Run manifest", "AuthorityAndModeTests; PaperPipelineTests"),
-        ("H", "configuration JSON", "configs/doxorubicin_parameters.json", "validate_authority_bundle", "Table 2", "AuthorityAndModeTests"),
-        ("I", "machine-readable outputs", "paper_analysis.py", "write_csv; run_manifest.json", "Figures 1-11; Tables 1-9", "PaperPipelineTests"),
-        ("J", "active repository mapping", "README.md; paper_analysis.py", "build_parser; main", "Table 9", "PaperPipelineTests"),
-    ]
+    critique_author = (
+        "Critique-author recommendation; original reviewer correspondence unavailable"
+    )
     rows = [
-        {
-            "requirement_id": f"Topic {number}",
-            "research_topic_or_output": description,
-            "exact_file": exact_file,
-            "exact_code_object": code_object,
-            "figure_or_table": artifacts,
-            "test": test,
-            "evidence_status": status,
-            "remaining_limitation": limitation,
-        }
-        for number, description, exact_file, code_object, artifacts, test, status, limitation in topics
+        ("A1", "Correct the physical spin system", critique_author,
+         "corrected with evidence", "Complete S=1/2 x 1 six-state space and exact D/Q projectors.",
+         "No chemically measured encounter preparation is available.",
+         "spin_chemistry.py", "P_DOUBLET; P_QUARTET; initial_density", "Table 1", "SpinAlgebraTests; InitialStateAndHamiltonianTests"),
+        ("A2", "Construct the anthracycline reaction network", critique_author,
+         "corrected with evidence", "Upstream semiquinone, primary superoxide, HO2/O2-minus, H2O2, and loss are separate stages.",
+         "Formal semiquinone protonation remains condition-dependent; the downstream calculation is a fixed-pH pulse.",
+         "spin_chemistry.py; README.md", "primary_superoxide_formation; downstream_ros_species_resolved", "Figures 1 and 9; Table 1", "StagedChemistryTests"),
+        ("A3", "Encode a real spin Hamiltonian", critique_author,
+         "partially addressed", "Hermitian six-state Zeeman, exchange, dipolar, O2 ZFS, and local electronic-field terms are implemented and unit documented.",
+         "Exact doxorubicin hyperfine, geometry, J, dipolar, and encounter O2 tensors are unavailable and disabled or sensitivity-only.",
+         "spin_chemistry.py; configs/doxorubicin_parameters.json", "hamiltonian; EncounterParameters", "Tables 1-3", "InitialStateAndHamiltonianTests; AuthorityAndModeTests"),
+        ("A4", "Replace CZ repetition with Hamiltonian propagation", critique_author,
+         "corrected with evidence", "Classical propagation uses exp(L dt); the circuit inserts one dense Hamiltonian-derived unitary.",
+         "No product-formula circuit exists; Trotter terminology and convergence claims are withdrawn.",
+         "spin_chemistry.py", "propagate_encounter_reference; execute_three_qubit_unitary_circuit", "Figure 11; Table 7", "CoherentValidationTests; EncounterDynamicsTests"),
+        ("A5", "Correct the singlet measurement", critique_author,
+         "superseded by corrected model", "The invalid singlet/triplet observable is replaced by exact doublet/quartet projectors and numerical expectations.",
+         "No finite-shot or measurement-gate experiment is executed.",
+         "spin_chemistry.py", "P_DOUBLET; P_QUARTET", "Figures 2, 3, and 11; Table 7", "SpinAlgebraTests; CoherentValidationTests"),
+        ("A6", "Implement spin-selective reaction dynamics", critique_author,
+         "corrected with evidence", "Separate kD, kQ, and escape loss channels are integrated with survival closure.",
+         "D/Q selectivity is a conditional modeling assumption; exact rates are unavailable.",
+         "spin_chemistry.py", "propagate_encounter_reference; propagate_encounter_independent", "Figures 2-7; Tables 4-6", "EncounterDynamicsTests; IndependentEncounterValidationTests"),
+        ("A7", "Add a matched classical comparison", critique_author,
+         "partially addressed", "Independent matrix-exponential and adaptive solvers match for the same full open-system problem; coherent Qiskit matches the same dense unitary.",
+         "The coherent circuit does not implement reaction, relaxation, or escape, so no open-system circuit validation is claimed.",
+         "spin_chemistry.py; paper_analysis.py", "_solver_validation; _circuit_rows", "Figures 8 and 11; Tables 6 and 7", "IndependentEncounterValidationTests; CoherentValidationTests"),
+        ("A8", "Add computation-time and memory benchmarks",
+         "Explicitly attributed by the critique to Reviewer 1; original correspondence unavailable",
+         "corrected with evidence", "A bounded table separately times matched coherent NumPy/Qiskit work and matched classical open-system solvers, with phase and memory scope.",
+         "Process RSS is a whole-process high-water mark; no quantum hardware, transpilation, sampling, scaling, or performance advantage is evaluated.",
+         "paper_analysis.py", "_runtime_memory_benchmark", "Table 10", "PaperPipelineTests"),
+        ("A9", "Test scaling with hyperfine-coupled nuclei", critique_author,
+         "withdrawn with justification", "Scaling and efficiency claims are removed; no artificial nuclear-spin model is introduced.",
+         "Exact doxorubicin hyperfine tensors are unavailable. Withdrawal is not reviewer acceptance.",
+         "README.md; metadata/run_manifest.json", "SCIENTIFIC_LIMITATIONS", "Table 9", "DocumentationTraceabilityTests; PaperPipelineTests"),
+        ("A10", "Replace the T1/T2 treatment", critique_author,
+         "superseded by corrected model", "The old amplitude/phase partition is retired; the retained generator is explicitly phenomenological isotropic Lindblad depolarization.",
+         "It is not a measured T1, T2, or Tphi model; exact-system relaxation values are unavailable.",
+         "spin_chemistry.py; README.md", "_lindblad; propagate_encounter_reference", "Figures 5, 7, and 8; Tables 2-3", "EncounterDynamicsTests; IndependentEncounterValidationTests"),
+        ("A11", "Replace or rescale seconds-long parameters", critique_author,
+         "corrected with evidence", "All encounter axes use t*kref and rates/kref; seconds are explicitly illustrative conversions from kref.",
+         "The reference rate is not a measured encounter clock.",
+         "README.md; sensitivity_analysis.py; paper_analysis.py", "encounter_result_row", "Figures 2, 4-8; Tables 4-6", "PaperPipelineTests"),
+        ("A12", "Rebuild the magnetic-field model", critique_author,
+         "partially addressed", "Static Zeeman inputs in tesla are distinct from a named local electronic-field proxy in rad/s.",
+         "No stochastic magnetic-noise distribution, spectrum, correlation time, or physical field-effect prediction is implemented.",
+         "spin_chemistry.py; README.md", "hamiltonian; EncounterParameters", "Tables 1-3", "InitialStateAndHamiltonianTests; AuthorityAndModeTests"),
+        ("A13", "Correct the legacy beta definition", critique_author,
+         "superseded by corrected model", "The legacy beta variable and its conclusions are absent from active calculations and outputs.",
+         "No old beta boundary or trend is retained; this scope reduction is not reviewer acceptance.",
+         "paper_analysis.py; sensitivity_analysis.py", "run_sweep", "Table 1", "PaperPipelineTests"),
+        ("A14", "Resolve implementation defects in public code", critique_author,
+         "superseded by corrected model", "CZ depth, parity-as-singlet, one-kick, semiconductor calibration, and protocol-weighting code paths are retired.",
+         "The current model does not reproduce or reinterpret those obsolete outputs.",
+         "spin_chemistry.py; tests/test_paper_pipeline.py", "active six-state API", "Table 1", "PaperPipelineTests.test_active_files_do_not_reference_removed_two_qubit_api"),
+        ("A15", "Regenerate all results", critique_author,
+         "corrected with evidence", "Figures 1-11, Tables 1-10, captions, CSV sources, checksums, and manifests are regenerated from the corrected model.",
+         "Removed amplitude/phase, protocol, one-kick, beta, and Trotter analyses are not rerun because their claims were retired.",
+         "paper_analysis.py", "main", "Figures 1-11; Tables 1-10", "PaperPipelineTests"),
+        ("B1", "Add a chemical reaction schematic", critique_author,
+         "partially addressed", "The existing author-created Figure 1, its caption, README equations, and Table 1 document species, charges, unpaired-electron counts, multiplicities, and singlet-oxygen exclusion.",
+         "No new detailed chemical drawing was added under the restricted-imagery scope.",
+         "README.md; paper_analysis.py", "CAPTIONS; _model_overview_rows", "Figure 1; Table 1", "PaperPipelineTests"),
+        ("B2", "Add the reviewer-requested model-comparison schematic",
+         "Called reviewer-requested by the critique; original correspondence unavailable",
+         "partially addressed", "Figure 1 plus Table 1 and Table 7 separate the full classical open-system model from the coherent-only circuit.",
+         "No new side-by-side schematic was added; the visual request was reduced to text/table evidence and is not accepted by assumption.",
+         "README.md; paper_analysis.py", "_model_comparison_rows; _circuit_rows", "Figure 1; Tables 1 and 7", "PaperPipelineTests"),
+        ("B3", "Add a complete circuit diagram", critique_author,
+         "partially addressed", "Table 7 and the Figure 11 caption document basis indices, supplied statevector, dense unitary, duration, and numerical D/Q post-processing.",
+         "No preparation, measurement, noise, reaction, delay, or Trotter gates are executed; no new diagram was added.",
+         "spin_chemistry.py; paper_analysis.py", "execute_three_qubit_unitary_circuit; _circuit_rows", "Figure 11; Table 7", "CoherentValidationTests"),
+        ("B4", "Add a parameter-provenance table", critique_author,
+         "corrected with evidence", "Complete machine-readable parameter provenance is retained with curated readable panels.",
+         "Many exact encounter parameters remain unavailable; no surrogate is activated as evidence.",
+         "configs/parameter_provenance.csv; paper_analysis.py", "_provenance_rows", "Table 2", "AuthorityAndModeTests; PaperPipelineTests"),
+        ("B5", "Add validation and performance figures", critique_author,
+         "partially addressed", "Numerical solver validation and coherent circuit consistency remain Figures 8 and 11; bounded runtime/memory is Table 10.",
+         "Trotter, nuclear-spin scaling, and quantum-performance figures are withdrawn with their claims.",
+         "paper_analysis.py; plotting.py", "_solver_validation; _runtime_memory_benchmark", "Figures 8 and 11; Tables 6, 7, and 10", "PaperPipelineTests"),
+        ("B6", "Rebuild or remove the existing figures", critique_author,
+         "corrected with evidence", "Figures 1-11 are corrected-model outputs with one CSV and caption each; Figure 1 alone is an author-created conceptual map.",
+         "All quantitative encounter coordinates remain illustrative and non-predictive.",
+         "paper_analysis.py; plotting.py", "main; CAPTIONS", "Figures 1-11", "PaperPipelineTests.test_every_rendered_figure_is_nonblank_and_has_source_csv"),
+        ("B7", "Rebuild or delete the tables", critique_author,
+         "corrected with evidence", "Tables 1-10 are rebuilt as complete CSV sources plus readable PDF and numbered high-resolution PNG pages.",
+         "Presentation panels round values and select columns, while the linked CSV retains full precision and provenance.",
+         "paper_analysis.py; table_rendering.py", "TABLE_PRESENTATION; render_table_from_csv", "Tables 1-10", "PaperPipelineTests"),
     ]
-    rows.extend({
-        "requirement_id": f"Output {letter}",
-        "research_topic_or_output": description,
-        "exact_file": exact_file,
-        "exact_code_object": code_object,
-        "figure_or_table": artifact,
-        "test": test,
-        "evidence_status": "complete",
-        "remaining_limitation": "Interpret only within the stated evidence and sensitivity scope.",
-    } for letter, description, exact_file, code_object, artifact, test in outputs)
-    return rows
+    keys = (
+        "requirement_id", "criticism", "request_attribution", "disposition",
+        "repository_evidence", "remaining_limitation", "exact_file",
+        "exact_code_object", "figure_or_table", "test",
+    )
+    return [
+        {**dict(zip(keys, row)), "evidence_status": row[3]}
+        for row in rows
+    ]
 
 
 def _circuit_rows(
@@ -981,6 +1587,18 @@ def _circuit_rows(
         "reason": reason,
         "seed": seed,
         "qubits": 3,
+        "duration_over_reference": 1.0,
+        "duration_s": duration,
+        "input_state_origin": (
+            "normalized pseudorandom six-element complex statevector supplied "
+            f"directly with seed {seed}"
+        ),
+        "state_preparation": "none; Statevector input is supplied numerically",
+        "measurement": "none; no measurement gates or finite-shot sampling",
+        "post_processing": (
+            "numerical statevector difference, D/Q projector expectations, basis "
+            "ordering, and unused-state leakage"
+        ),
         "basis_order": ["000", "001", "010", "100", "101", "110"],
         "physical_indices": physical.tolist(),
         "unused_indices": unused.tolist(),
@@ -1005,17 +1623,17 @@ def _circuit_rows(
 
 
 CAPTIONS = {
-    "figure01_model_overview": "Figure 1. Corrected model overview. Doxorubicin reduction and semiquinone formation are classical upstream stages. A semiquinone-triplet-O2 encounter enters the six-state doublet/quartet quantum spin-evolution stage, followed by competing spin-selective electron transfer or escape. Integrated reaction flux forms primary superoxide; fixed-pH HO2/O2-minus speciation and dismutation subsequently form H2O2, which may be lost through a separate sink. Conceptual workflow created by the authors; not a simulation output. The diagram is non-quantitative and does not assert coherent preparation or a measured encounter.",
+    "figure01_model_overview": "Figure 1. Corrected model overview. Formal electron-transfer bookkeeping is AQ + e- -> AQ radical anion, followed by AQ radical anion + ground-state triplet O2 -> AQ + O2 radical anion; the modeled downstream pool uses HO2/O2 radical-anion equilibrium and two radical equivalents per H2O2. Closed-shell AQ has zero unpaired electrons, semiquinone and superoxide each have one (doublet), and ground-state O2 has two (triplet); singlet oxygen is excluded. The semiquinone protonation/formal charge is condition-dependent and is not assigned as a measured active-model input. A semiquinone-triplet-O2 encounter enters the six-state doublet/quartet stage, followed by competing conditional reaction or escape. Conceptual workflow created by the authors; not a simulation output. The diagram is non-quantitative and does not assert coherent preparation or a measured encounter.",
     "figure02_benchmark_trajectories": "Figure 2. Benchmark encounter trajectories. Surviving doublet and quartet populations, total survival, cumulative doublet and quartet reaction yields, primary-superoxide yield, and escape yield are shown against normalized time for five benchmark mixtures. At every sampled time, YD + YQ + Yescape + Psurvival = 1 within numerical tolerance. The settings kD/kref=1, kQ/kD=0.1, kescape/kref=1, omega_local/kref=1, and gammaR/kref=gammaO/kref=0.1 are illustrative sensitivity coordinates, not measured parameters.",
     "figure03_initial_state_comparison": "Figure 3. Initial-state comparison. Final reaction, escape, and unresolved survival outcomes are compared for the unpolarized encounter, doublet-manifold benchmark, quartet-manifold benchmark, and pD=0.25 and pD=0.75 mixtures. The doublet and quartet cases are computational limiting benchmarks rather than demonstrated chemically prepared states. Primary superoxide is the sum of integrated D and Q reaction yields, not a final spin population.",
     "figure04_mixing_escape_heatmaps": "Figure 4. Mixing-versus-escape heatmaps. Primary-superoxide yield per encounter is calculated over normalized local D/Q mixing and escape rates for kQ/kD=0, 0.1, 1, and 10. The kQ/kD=1 panel is the spin-independent null condition. Zero and logarithmic nonzero coordinates are illustrative; no displayed range is experimentally established.",
     "figure05_mixing_relaxation_heatmaps": "Figure 5. Mixing-versus-relaxation heatmaps. Primary-superoxide yield is calculated for an unpolarized benchmark over normalized local mixing and equal radical/O2 relaxation rates. The fixed settings are kD/kref=1, kescape/kref=1, and duration=8/kref; panels show kQ/kD=0, 0.1, 1, and 10, with equality marked as the spin-independent null. All coordinates are illustrative and non-predictive.",
     "figure06_reaction_selectivity": "Figure 6. Reaction-selectivity sensitivity. Primary-superoxide yield is plotted against kQ/kD for unpolarized, doublet, quartet, pD=0.25, and pD=0.75 benchmarks across three mixing and escape settings. The vertical line marks kQ/kD=1 as the spin-independent null. The kQ/kD axis is a sensitivity coordinate, not a measured or chemically defensible probability distribution or physical range.",
     "figure07_controls": "Figure 7. Controls and limiting cases. Baseline sensitivity, zero mixing, kQ=kD spin-independent reaction, fast relaxation, rapid escape, doublet benchmark, and quartet benchmark cases show primary reaction, escape, and unresolved survival. Stacked outcomes make probability accounting visible. All rates and initial-state restrictions are computational controls, not established encounter parameters or preparations.",
-    "figure08_solver_validation": "Figure 8. Independent numerical validation. A separately constructed adaptive Dormand-Prince 5(4) solver is compared with the constant-generator matrix-exponential reference for full density matrices, doublet and quartet populations, survival, reaction yields, escape yield, and probability balance. Dashed lines show declared tolerances. Agreement validates numerical implementation only, not physical encounter inputs.",
+    "figure08_solver_validation": "Figure 8. Independent numerical validation. A separately constructed adaptive Dormand-Prince 5(4) solver is compared with the constant-generator matrix-exponential reference for full density matrices, doublet and quartet populations, survival, reaction yields, escape yield, and probability balance. Dashed lines show declared absolute tolerances. The symmetric-log display includes exact zero without replacing it by an artificial logarithmic floor. Agreement validates numerical implementation only, not physical encounter inputs or the coherent circuit.",
     "figure09_downstream_kinetics": "Figure 9. Downstream ROS kinetics. Total superoxide-family radical pool, HO2, O2-minus, accumulated H2O2, and accumulated H2O2 loss are shown for spontaneous dismutation, SOD-mediated dismutation, and SOD plus H2O2 loss. The calculation starts from an illustrative 10 micromolar single radical pulse at fixed pH 7.4, assumes rapid acid-base equilibrium and constant rates/SOD, and consumes two radical equivalents per H2O2. No spin population is mapped directly to H2O2, and the trajectories are not cellular predictions.",
     "figure10_bulk_rate_comparison": "Figure 10. Literature bulk-rate comparison. Actual numerical values stored in the configuration JSON and matched provenance CSV are plotted with reported uncertainty, pH, temperature, environment, species/protonation, method, and source identifiers. Missing conditions remain visibly marked and records are not combined into a universal rate. These M^-1 s^-1 bulk total constants are not encounter-level kD or kQ in s^-1.",
-    "figure11_circuit_validation": "Figure 11. Three-qubit coherent-embedding validation. The six-state coherent reference unitary is compared with its eight-state three-qubit embedding and, when requested and available, actual Qiskit statevector execution. Statevector, doublet and quartet observable, basis-ordering, and unused-state leakage errors are compared with declared tolerances. This validates coherent simulator and encoding consistency only; it does not validate reaction, relaxation, escape, downstream chemistry, hardware performance, or quantum advantage.",
+    "figure11_circuit_validation": "Figure 11. Three-qubit coherent-embedding validation. Physical six-state basis indices [0,1,2,4,5,6] are embedded in an eight-state register; indices [3,7] are unused. A normalized pseudorandom six-component statevector (seed 1729) is supplied numerically, not prepared by gates. One dense 8x8 UnitaryGate contains U=exp(-iH t) for t=1/kref; no Trotter, delay, noise, reaction, measurement, or sampling gates are executed. Statevector, numerical D/Q projector expectations, basis ordering, and unused-state leakage are compared with the direct six-state result. This validates coherent simulator and encoding consistency only; it does not independently validate H, the open-system model, chemistry, hardware performance, or quantum advantage.",
 }
 
 
@@ -1155,64 +1773,35 @@ def main(argv: list[str] | None = None) -> None:
         "table07_circuit_validation": data_sets["figure11_circuit_validation"],
         "table08_experimental_validation_evidence": _validation_dataset_rows(authority),
         "table09_requirements_traceability": _traceability_rows(),
-    }
-    markdown_fields = {
-        "table01_original_versus_corrected_model": [
-            "model_element", "original_implementation", "corrected_implementation",
-            "scientific_consequence",
-        ],
-        "table02_parameter_provenance": [
-            "symbol", "definition", "value_or_range", "unit", "species", "charge_state",
-            "environment", "temperature", "pH", "method", "uncertainty",
-            "source", "status", "limitations", "permitted_use", "code_location",
-        ],
-        "table03_unavailable_parameters_and_consequences": [
-            "missing_parameter", "why_needed", "status",
-            "sensitivity_coordinate_allowed", "range_status",
-            "conclusion_prohibited", "allowed_treatment", "source_of_status",
-        ],
-        "table04_baseline_results": [
-            "initial_state_definition", "p_doublet_initial",
-            "doublet_reaction_yield_per_encounter",
-            "quartet_reaction_yield_per_encounter",
-            "primary_superoxide_yield_per_encounter", "escape_yield_per_encounter",
-            "survival_probability", "probability_balance",
-        ],
-        "table05_controls_and_extrema": [
-            "summary_type", "source_grid", "scenario_id", "control_label",
-            "initial_state_definition", "mixing_over_reference",
-            "radical_relaxation_over_reference", "escape_over_reference",
-            "kq_over_kd", "primary_superoxide_yield_per_encounter",
-            "escape_yield_per_encounter", "unresolved_probability",
-        ],
-        "table06_independent_solver_validation": [
-            "observable", "worst_absolute_error", "worst_relative_error",
-            "declared_absolute_tolerance", "passes", "reference_solver",
-            "independent_solver", "scope",
-        ],
-        "table07_circuit_validation": [
-            "metric", "validation_layer", "value", "tolerance", "passes",
-            "qiskit_available", "qiskit_execution_status", "status",
-            "implementation_type", "scope", "reason",
-        ],
-        "table08_experimental_validation_evidence": [
-            "dataset_id", "exact_chemical_or_biological_system", "observable",
-            "conditions", "reported_result", "unit", "method", "source",
-            "usable_for_direct_validation", "limitations",
-        ],
-        "table09_requirements_traceability": [
-            "requirement_id", "research_topic_or_output",
-            "exact_file", "exact_code_object", "figure_or_table", "test",
-            "evidence_status", "remaining_limitation",
-        ],
+        "table10_runtime_memory_benchmark": _runtime_memory_benchmark(
+            args.reference_rate_s, args.seed, args.execute_circuit, metadata
+        ),
     }
     for rows in table_sets.values():
         _augment_rows(rows, metadata, config, provenance)
+    table_linkage: dict[str, dict[str, Any]] = {}
     for stem, rows in table_sets.items():
-        write_csv(rows, paths["tables"] / f"{stem}.csv")
-        write_markdown(
-            rows, paths["tables"] / f"{stem}.md", markdown_fields[stem]
+        fields = _presentation_fields(TABLE_PRESENTATION[stem])
+        csv_path = write_csv(rows, paths["tables"] / f"{stem}.csv")
+        markdown_path = write_markdown(
+            rows, paths["tables"] / f"{stem}.md", fields
         )
+        rendered = render_table_from_csv(
+            csv_path,
+            paths["tables"] / f"{stem}.pdf",
+            TABLE_PRESENTATION[stem],
+            COLUMN_LABELS,
+            requested_dpi=args.dpi,
+        )
+        table_linkage[stem] = {
+            **rendered,
+            "source_csv": f"tables/{csv_path.name}",
+            "markdown": f"tables/{markdown_path.name}",
+            "pdf": f"tables/{rendered['pdf']}",
+            "png_previews": [
+                f"tables/{name}" for name in rendered["png_previews"]
+            ],
+        }
 
     ofat_rows = run_sweep(args.reference_rate_s, samples)
     _augment_rows(ofat_rows, metadata, config, provenance)
@@ -1322,7 +1911,7 @@ def main(argv: list[str] | None = None) -> None:
         for stem in data_sets
     }
     manifest = {
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "analysis_mode": mode,
         "output_label": "NON-PREDICTIVE ROS_SPIN PAPER SENSITIVITY STUDY",
         "command_line_invocation": invocation,
@@ -1340,9 +1929,21 @@ def main(argv: list[str] | None = None) -> None:
             "includes_exact_kq_over_kd_one": True,
             "bounds_status": "illustrative computational bounds only",
         },
-        "sample_counts": {"trajectory": samples, "final_sweep": 2, "ofat": samples},
+        "sample_counts": {
+            "trajectory": samples, "final_sweep": 2, "ofat": samples,
+            "runtime_benchmark_repetitions": 7,
+            "runtime_benchmark_warmups": 2,
+        },
         "numerical_tolerances": TOLERANCES,
         "environment": metadata,
+        "source_state_acceptance": {
+            "generation_commit_is_clean_source_identity": not metadata["dirty_tree"],
+            "results_commit_may_differ_from_generation_commit": True,
+            "acceptance_basis": (
+                "recorded source commit plus source/configuration/provenance hashes; "
+                "results are deposited in a later results-only commit"
+            ),
+        },
         "qiskit_execution": circuit_record,
         "skipped_features": [] if circuit_record.get("qiskit_execution_status") == "executed" else [{
             "feature": "Qiskit statevector execution", "reason": circuit_record.get("reason")
@@ -1354,13 +1955,21 @@ def main(argv: list[str] | None = None) -> None:
             "downstream kinetics use fixed pH, rapid acid-base equilibrium, constant SOD and rate constants, and one radical pulse",
             "two radical equivalents form one H2O2",
             "bulk M^-1 s^-1 constants are not converted to encounter s^-1 rates",
+            "finite-time encounter yields retain unresolved survival and are not asymptotic",
+            "local Lindblad coefficients define phenomenological isotropic depolarization, not measured T1/T2",
+            "the local electronic-field term is static and is not stochastic magnetic noise or nuclear hyperfine dynamics",
         ],
         "scientific_limitations": SCIENTIFIC_LIMITATIONS,
         "figure_source_and_render_linkage": figure_linkage,
-        "table_files": [
-            f"tables/{stem}.{extension}"
-            for stem in table_sets for extension in ("csv", "md")
-        ],
+        "table_source_and_render_linkage": table_linkage,
+        "table_files": sorted({
+            item
+            for linkage in table_linkage.values()
+            for item in (
+                linkage["source_csv"], linkage["markdown"], linkage["pdf"],
+                *linkage["png_previews"],
+            )
+        }),
         "runtime_seconds": time.perf_counter() - started,
         "generated_file_hashes_sha256": {},
         "checksum_scope_note": "Self-referential metadata files are inventoried but excluded from their own embedded hash maps; output_checksums.csv hashes the final run manifest and all preceding artifacts.",
@@ -1381,6 +1990,7 @@ def main(argv: list[str] | None = None) -> None:
         "This directory is a complete non-predictive sensitivity-study run. Use `--overwrite` to replace it deliberately; otherwise choose a new output directory.", "",
         "## Artifact inventory", "",
         "Every figure reads its values from the same-named CSV in `data/`. Figure 11 always includes the NumPy six-to-eight-state embedding comparison and also includes Qiskit statevector metrics when execution was requested and available. Table 7 records the exact status.", "",
+        "Tables 1-10 each have a complete machine-readable CSV, a multipage typeset PDF, and numbered high-resolution PNG page previews. The rendered panels use documented presentation columns and rounding; the linked CSV retains every row, every column, full numerical precision, and provenance fields. `Not available` is never rendered as numeric zero.", "",
     ]
     for relative in known_files:
         if str(relative).startswith("data/"):
@@ -1406,6 +2016,10 @@ def main(argv: list[str] | None = None) -> None:
         "```", "",
         "", "## Scientific meaning and limitations", "", SCIENTIFIC_LIMITATIONS, "",
         "The downstream figure assumes fixed pH, rapid HO2/O2-minus equilibrium, constant SOD, constant rates, and one radical pulse. Bulk constants remain separate condition-specific records and are not encounter rates.", "",
+        "All encounter yields are finite-time quantities with unresolved survival reported explicitly; none is an asserted asymptotic yield. Any seconds shown come from the illustrative reference-rate conversion and are not measured encounter times.", "",
+        "The local-spin GKSL term is phenomenological isotropic depolarization, not measured T1/T2. The local electronic-field proxy is static, not stochastic magnetic noise or explicit nuclear hyperfine dynamics.", "",
+        "Table 9 records every critique item A1-A15 and B1-B7. Original reviewer correspondence was unavailable; withdrawn or scope-reduced requests are not represented as reviewer acceptance.", "",
+        "The manifest records the clean generation commit separately from the later results commit; source, configuration, and provenance hashes are the acceptance basis.", "",
     ])
     readme_path.write_text("\n".join(readme_lines), encoding="utf-8")
 

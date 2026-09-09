@@ -236,6 +236,14 @@ def initial_density(scenario: str, p_doublet: float | None = None) -> np.ndarray
 
 
 def _lindblad(density: np.ndarray, operator: np.ndarray) -> np.ndarray:
+    """Return one trace-preserving GKSL dissipator term.
+
+    The active relaxation option sums local spin-component dissipators with a
+    shared phenomenological coefficient for each subsystem.  It is an
+    isotropic depolarization sensitivity generator, not measured T1, T2, Tphi,
+    a stochastic magnetic-noise spectrum, or an encounter-specific relaxation
+    mechanism.
+    """
     adjoint = operator.conj().T
     return operator @ density @ adjoint - 0.5 * (
         adjoint @ operator @ density + density @ adjoint @ operator
@@ -319,8 +327,11 @@ def propagate_encounter_reference(
 
     d rho/dt = -i[H,rho] - {K + k_escape I,rho}/2 + L_relax(rho),
     K = k_D P_D + k_Q P_Q. Reaction and escape yields are time integrals
-    of their respective fluxes. This is not an evidence-backed encounter
-    prediction until every required encounter input is supported. The constant
+    of their respective fluxes. Local spin-component GKSL dissipators provide
+    a trace-preserving phenomenological isotropic-depolarization sensitivity
+    model; their coefficients are not interpreted as measured T1/T2 values.
+    This is not an evidence-backed encounter prediction until every required
+    encounter input is supported. The constant
     39-component linear system (36 density elements plus three accumulated
     yields) is advanced with a scaling-and-squaring Padé matrix exponential.
     """

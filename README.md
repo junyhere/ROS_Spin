@@ -52,8 +52,11 @@ computational bounds—not measured ranges, plausible ranges, confidence
 intervals, or priors.
 
 The final paper run contains Figures 1-11 as PNG, SVG, and PDF, one source CSV
-and caption file per figure, Tables 1-9 as CSV and Markdown, and reproducibility
-metadata.
+and caption file per figure, and Tables 1-10 as complete CSV sources, Markdown,
+typeset multipage PDF, and numbered high-resolution PNG pages. Each rendered
+table is read back from its CSV. Presentation panels round values and select
+documented columns for readability; every row, every column, full precision,
+and provenance remain in the linked CSV. `Not available` is distinct from zero.
 
 Run one individual encounter and one mixture benchmark:
 
@@ -139,6 +142,20 @@ illustrative values.
 
 ## Equations and validation scope
 
+Recommended manuscript framing (no manuscript file is renamed here):
+“An evidence-gated six-state computational framework for doublet-quartet
+dynamics in doxorubicin semiquinone-oxygen encounters.”
+
+Formal reaction bookkeeping is `AQ + e- -> AQ radical anion`, followed by
+`AQ radical anion + ground-state triplet O2 -> AQ + O2 radical anion` and the
+downstream anion-form balance `2 O2 radical anion + 2 H+ -> H2O2 + O2`.
+The implementation resolves the rapid HO2/O2-radical-anion acid-base
+equilibrium rather than forcing one protonation form. Closed-shell AQ and H2O2
+have zero unpaired electrons; semiquinone and superoxide each have one and are
+doublets; ground-state O2 has two and is a triplet. Singlet oxygen is excluded.
+The semiquinone formal charge/protonation is condition-dependent and is not
+silently assigned as a measured active-model input.
+
 The encounter Hamiltonian is
 
 `H/ℏ = βe B·(gSQ s + gO2 S) + J s·S + s·Ddip·S + S·DO2·S + Ωlocal·s`,
@@ -180,6 +197,18 @@ yield error `3e-9`; analytic reaction/escape limits `1e-8`; probability balance
 leakage probability `1e-24`. These numerical tolerances are not physical
 uncertainties.
 
+`Lrelax` is a phenomenological isotropic local-spin GKSL generator. Its
+coefficients are sensitivity coordinates, not measured T1, T2, or Tphi values.
+The generator is trace preserving without reaction/escape and is checked for
+positive relaxation-only evolution. `local_field_proxy_rad_s` is a static local
+electronic term; it is not a stochastic field, noise spectrum, correlation
+time, or explicit nuclear hyperfine Hamiltonian.
+
+Encounter results are evaluated at a finite endpoint and always retain the
+unresolved survival probability. They are not called asymptotic yields. Any
+seconds shown are obtained from the illustrative `kref` conversion and are not
+measured encounter times.
+
 Create the isolated environment used for circuit-inclusive verification, then
 run the full suite:
 
@@ -195,6 +224,18 @@ decomposition into elementary gates. It checks Qiskit basis ordering,
 physical-subspace leakage, the statevector, and D/Q observables. This is
 simulator/embedding consistency, not an independent Hamiltonian derivation,
 and it never validates relaxation, reaction, escape, or chemistry.
+The normalized pseudorandom six-component input (seed 1729) is supplied
+directly. No preparation, measurement, finite-shot sampling, delay, noise,
+reaction, or Trotter gates are executed. Numerical projector expectations are
+post-processing operations.
+
+The full classical model and the coherent circuit therefore have different
+scopes: the classical calculation includes Hamiltonian evolution,
+phenomenological relaxation, D/Q reaction loss, escape, and integrated yields;
+the circuit includes only the coherent dense unitary. Table 10 compares NumPy
+and Qiskit only for their matched coherent workload and benchmarks the two
+classical open-system solvers separately under matched conditions. It is not a
+scaling or computational-advantage study.
 
 ## Reproducible sensitivity outputs
 
