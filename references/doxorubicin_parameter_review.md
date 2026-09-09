@@ -187,4 +187,4 @@ scientific parameterization unavailable.
 | G — unsupported claims | “Prohibited claims” above | Evidence-mode refusal tests | Complete | Quantitative biological readiness explicitly prohibited. |
 | H — JSON | `configs/doxorubicin_parameters.json` schema 2.2 | Authority-bundle validation | Complete | Sensitivity values are illustrative. |
 | I — CSV | provenance plus `results/demo/dimensionless_sensitivity.csv` | Provenance and reproducible-analysis tests | Complete | Demo grid is not measured. |
-| J — existing-repository mapping | README, this section, legacy `dataset/` | Required-path gate; legacy data untouched | Complete | Legacy semiconductor data do not parameterize chemistry. |
+| J — active-repository mapping | README and `paper_analysis.py` | Active-module, CLI, and generated-output tests | Complete | Only the corrected chemical model and its generated results remain in scope. |

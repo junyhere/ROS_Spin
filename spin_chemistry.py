@@ -987,47 +987,6 @@ def downstream_ros_species_resolved(
     }
 
 
-def downstream_ros(
-    superoxide0_m, duration_s, k_spont_m_inv_s, k_sod_m_inv_s, sod_m,
-    k_h2o2_loss_s=0.0, samples=201,
-):
-    """Legacy effective-rate sensitivity model; not species-resolved evidence."""
-    superoxide0_m = _finite_scalar("superoxide0_m", superoxide0_m, nonnegative=True)
-    duration_s = _finite_scalar("duration_s", duration_s, nonnegative=True)
-    k_spont_m_inv_s = _finite_scalar(
-        "k_spont_m_inv_s", k_spont_m_inv_s, nonnegative=True
-    )
-    k_sod_m_inv_s = _finite_scalar("k_sod_m_inv_s", k_sod_m_inv_s, nonnegative=True)
-    sod_m = _finite_scalar("sod_m", sod_m, nonnegative=True)
-    k_h2o2_loss_s = _finite_scalar(
-        "k_h2o2_loss_s", k_h2o2_loss_s, nonnegative=True
-    )
-    samples = _sample_count(samples)
-    # At pH=pKa both fractions are 1/2. Multipliers map the legacy effective
-    # event and SOD coefficients exactly onto the stable analytic solver.
-    resolved = downstream_ros_species_resolved(
-        superoxide0_m,
-        duration_s,
-        0.0,
-        0.0,
-        4 * k_spont_m_inv_s,
-        0.0,
-        k_sod_m_inv_s=2 * k_sod_m_inv_s,
-        sod_m=sod_m,
-        k_h2o2_loss_s=k_h2o2_loss_s,
-        samples=samples,
-    )
-    return {
-        "time_s": resolved["time_s"],
-        "superoxide_m": resolved["radical_pool_m"],
-        "hydrogen_peroxide_m": resolved["hydrogen_peroxide_m"],
-        "accumulated_hydrogen_peroxide_loss_m": resolved[
-            "accumulated_hydrogen_peroxide_loss_m"
-        ],
-        "limitations": "legacy effective-rate sensitivity output; no species resolution",
-    }
-
-
 def unitary_embedding_consistency_check(
     parameters: EncounterParameters, duration_s: float
 ) -> float:

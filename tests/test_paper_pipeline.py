@@ -14,14 +14,12 @@ import unittest
 import numpy as np
 from PIL import Image, ImageStat
 import matplotlib.pyplot as plt
-from docx import Document
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sensitivity_analysis import encounter_result_row  # noqa: E402
 from paper_analysis import TOLERANCES  # noqa: E402
-from professor_handoff import PROVENANCE_STATEMENT, build_docx  # noqa: E402
 from plotting import (  # noqa: E402
     plot_bulk_rates,
     plot_controls,
@@ -65,13 +63,12 @@ class PaperPipelineTests(unittest.TestCase):
     def test_active_modules_and_clis_import(self):
         for module in (
             "spin_chemistry", "ROS", "sensitivity_analysis", "plotting",
-            "paper_analysis", "professor_handoff",
+            "paper_analysis",
         ):
             imported = importlib.import_module(module)
             self.assertIsNotNone(imported, module)
         for script in (
             "ROS.py", "sensitivity_analysis.py", "paper_analysis.py",
-            "professor_handoff.py",
         ):
             completed = subprocess.run(
                 [sys.executable, script, "--help"], cwd=ROOT,
@@ -82,26 +79,13 @@ class PaperPipelineTests(unittest.TestCase):
     def test_active_files_do_not_reference_removed_two_qubit_api(self):
         active = (
             "spin_chemistry.py", "ROS.py", "sensitivity_analysis.py",
-            "plotting.py", "paper_analysis.py", "professor_handoff.py",
+            "plotting.py", "paper_analysis.py",
         )
         removed = ("build_rp_circuit", "counts_to_ros", "coherent_circuit_validation", "f_ow", "f_fb")
         for filename in active:
             source = (ROOT / filename).read_text(encoding="utf-8")
             for symbol in removed:
                 self.assertNotIn(symbol, source, f"{filename}: {symbol}")
-
-    def test_legacy_entrypoints_are_unambiguous_and_sources_are_retained(self):
-        scripts = (
-            "ROS_Util.py", "basecheck.py", "error.py", "fig09plot.py",
-            "heat_gamma.py", "heat_singlet.py", "looped.py", "noise.py", "plot_error.py",
-        )
-        for script in scripts:
-            self.assertTrue((ROOT / "legacy" / script).is_file())
-            completed = subprocess.run(
-                [sys.executable, script], cwd=ROOT, text=True, capture_output=True,
-            )
-            self.assertNotEqual(completed.returncode, 0)
-            self.assertIn("LEGACY SEMICONDUCTOR/TWO-QUBIT MATERIAL", completed.stderr)
 
     def test_quick_generation_has_complete_directory_and_artifact_contract(self):
         self.assertEqual(self.report["status"], "complete")
@@ -284,18 +268,6 @@ class PaperPipelineTests(unittest.TestCase):
         self.assertTrue(all(row["passes"] == "True" for row in circuit))
         self.assertEqual(circuit[0]["qiskit_execution_status"], "executed")
         self.assertTrue((self.output / "figures" / "figure11_circuit_validation.png").is_file())
-
-    def test_word_document_is_generated_from_pipeline_tables_and_figures(self):
-        output = Path(self.temporary.name) / "handoff.docx"
-        build_docx(self.output, output)
-        self.assertTrue(output.is_file())
-        self.assertGreater(output.stat().st_size, 100_000)
-        document = Document(output)
-        text = "\n".join(paragraph.text for paragraph in document.paragraphs)
-        self.assertIn(PROVENANCE_STATEMENT, text)
-        self.assertIn("Supported Claims", text)
-        self.assertGreaterEqual(len(document.inline_shapes), 11)
-        self.assertGreaterEqual(len(document.tables), 12)
 
     def test_manifest_hashes_resolve_and_overwrite_is_explicit(self):
         manifest = json.loads((self.output / "metadata" / "run_manifest.json").read_text())

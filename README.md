@@ -51,19 +51,9 @@ overrides include `--reference-rate-s`, `--samples`, `--grid-size`, `--config`,
 computational bounds—not measured ranges, plausible ranges, confidence
 intervals, or priors.
 
-Build the professor-facing Word document, matched PDF, summary, and ZIP after
-the full paper run:
-
-```bash
-.venv/bin/python render_equations.py assets/equations
-python3 professor_handoff.py --results-dir results/paper \
-  --deliverables-dir deliverables --overwrite
-```
-
 The final paper run contains Figures 1-11 as PNG, SVG, and PDF, one source CSV
 and caption file per figure, Tables 1-9 as CSV and Markdown, and reproducibility
-metadata. The formatted versions of Tables 1-9 are embedded in the professor
-handoff document.
+metadata.
 
 Run one individual encounter and one mixture benchmark:
 
@@ -226,56 +216,3 @@ grid, units, numerical settings, and limitations. Bounds are illustrative—not
 measured ranges or probability priors. Outputs are populations and
 per-encounter yields, not concentrations or fluxes; no arbitrary amplitude fit
 or conversion to biological molarity is performed.
-
-## Legacy data
-
-The processed semiconductor spin-shuttling data below and their original
-scripts are retained under `dataset/` and `legacy/` for Git history and
-reproducibility, but are not used by the chemical spin model. Historical root
-script names now stop with a clear legacy redirect rather than importing stale
-chemical APIs.
-
-The legacy results are invalid as evidence for the corrected anthracycline
-model: two-spin singlet/triplet and Bell-state parity do not map to the exact
-doublet/quartet projectors of a spin-1/2 plus spin-1 system; CZ circuit depth is
-not chemical encounter time; `f_ow`/`f_fb` transport weights do not define
-chemical preparation or reaction; and semiconductor damping data do not supply
-doxorubicin/O2 T1, T2, relaxation, escape, or encounter geometry. They must not
-be translated mechanically or used to parameterize active calculations.
-
-# Original project overview
-
-This repository uses processed datasets for simulations regarding quantum entanglement generation in open quantum systems. The raw data originate from the Mokeev dataset "Spin-based remote entanglement generation in open quantum systems" (DOI: 10.4121/d0d1007f-c27d-491d-b7e1-cc60e38047b4). Only relevant subsets/folders that can be viewed in their DATASET.zip folder are included here.
-
-The original dataset README on 4TU.ResearchData states that the files are released under the Creative Commons Attribution 4.0 license (CC BY 4.0). The CSV and JSON files in this repository were obtained from the Mokeev datast directly but some files were not used.
-
-## Folder summaries
-
-### `dataset/fig03`
-* `Sim07_20240405_stochastic_field_axis_3.json` – arrays `t` and `x` defining a 201×101 grid of time and position values.
-* `Sim07_20240405_stochastic_field_vals_3.csv` – stochastic magnetic field values on that grid. Each row corresponds to a fixed `x` value and contains 201 comma-separated entries for the different time points.
-
-### `dataset/fig06`
-Four CSV files (`Sim08_20240405_S1_OW_vs_FB_OU_1.csv` … `_4.csv`) giving shuttling fidelities for different ranges of the dimensionless parameter `beta`.
-Columns:
-* `beta` – scaled shuttling speed.
-* `f_fb` – final fidelity for the feed-back protocol.
-* `f_ow` – final fidelity for the one-way protocol.
-
-### `dataset/fig08`
-* `Sim06_20231019_dephasing_surface_axis.csv` – 401 rows of `(v, T0)` values describing the scan parameters.
-* `Sim06_20231019_dephasing_surface_vals.csv` – a 400×400 grid of fidelities associated with those parameter pairs.
-
-### `dataset/fig09`
-CSV/JSON pairs named `realistic_tau=<value>` describing two-spin shuttling simulations for various dephasing times `tau`.
-* CSV columns: `v` (velocity) and `chi_ni` (numerical infidelity).
-* JSON files record the simulation settings such as magnetic field parameters and sample sizes.
-
-### `dataset/fig10-12`
-Files describing numerical error scaling for Monte Carlo (`*_MC.csv`) and numerical integration (`*_NI.csv`) approaches. Each CSV contains columns
-* `N` – number of time steps used in the solver,
-* `epsilon` – absolute error of the method,
-* `delta` – Monte Carlo sampling error (for MC files),
-* `cpu_time` – execution time in seconds,
-* `ram_bytes` – memory usage.
-Companion JSON files list the common parameters (`T`, `L`, `M`, `corr_t`, `corr_x`).

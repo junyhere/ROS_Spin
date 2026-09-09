@@ -154,7 +154,7 @@ def _source_metadata(config: Path, provenance: Path) -> dict[str, Any]:
         "git_branch": _git(["rev-parse", "--abbrev-ref", "HEAD"]),
         "git_remote_origin": _git(["remote", "get-url", "origin"]),
         "dirty_tree": bool(dirty),
-        "dirty_entries_at_start": dirty,
+        "dirty_entry_count_at_start": len(dirty),
         "source_fingerprint_sha256": digest.hexdigest(),
         "source_files": [_identity(path) for path in source_files],
         "config_path": _identity(config),
@@ -874,11 +874,11 @@ def _traceability_rows() -> list[dict]:
         ("C", "initial-state benchmarks", "spin_chemistry.py", "initial_density", "Figures 2-3; Table 4", "InitialStateAndHamiltonianTests"),
         ("D", "kQ/kD analysis", "sensitivity_analysis.py", "run_mixing_escape_sweep; run_selectivity_sweep", "Figures 4 and 6", "PaperPipelineTests"),
         ("E", "reaction network", "spin_chemistry.py", "primary_superoxide_formation; downstream_ros_species_resolved", "Figures 1 and 9", "StagedChemistryTests"),
-        ("F", "supported claims", "deliverables/ROS_Spin_professor_summary.md", "SUPPORTED_CLAIMS", "Professor summary", "test_professor_handoff.py"),
-        ("G", "unsupported claims", "deliverables/ROS_Spin_professor_summary.md", "PROHIBITED_CLAIMS", "Professor summary", "test_professor_handoff.py"),
+        ("F", "supported claims", "metadata/paper_results_summary.md", "main", "Generated results summary", "PaperPipelineTests"),
+        ("G", "unsupported claims", "metadata/run_manifest.json", "SCIENTIFIC_LIMITATIONS", "Run manifest", "AuthorityAndModeTests; PaperPipelineTests"),
         ("H", "configuration JSON", "configs/doxorubicin_parameters.json", "validate_authority_bundle", "Table 2", "AuthorityAndModeTests"),
         ("I", "machine-readable outputs", "paper_analysis.py", "write_csv; run_manifest.json", "Figures 1-11; Tables 1-9", "PaperPipelineTests"),
-        ("J", "existing repository and legacy mapping", "README.md; legacy_entrypoint.py", "retired_entrypoint", "Table 9", "PaperPipelineTests"),
+        ("J", "active repository mapping", "README.md; paper_analysis.py", "build_parser; main", "Table 9", "PaperPipelineTests"),
     ]
     rows = [
         {

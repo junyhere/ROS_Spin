@@ -235,7 +235,7 @@ def _metadata(config: Path, provenance: Path) -> dict:
     return {
         "commit": commit,
         "dirty_tree": bool(dirty),
-        "dirty_entries": dirty,
+        "dirty_entry_count": len(dirty),
         "source_fingerprint_sha256": digest.hexdigest(),
         "config_identity": (
             str(config.resolve().relative_to(ROOT))

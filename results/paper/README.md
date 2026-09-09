@@ -110,14 +110,3 @@ The quick verification run is:
 Illustrative computational sensitivity study only. Encounter preparation, kD, kQ, escape, duration, relaxation, exchange, dipolar coupling, geometry, and encounter O2 tensors are unavailable. No per-encounter yield is converted to concentration or biological flux. No measured coherence, D/Q selectivity, quantum advantage, entanglement, magnetic control, or quantitative biological ROS prediction is claimed.
 
 The downstream figure assumes fixed pH, rapid HO2/O2-minus equilibrium, constant SOD, constant rates, and one radical pulse. Bulk constants remain separate condition-specific records and are not encounter rates.
-
-## Professor handoff reproduction
-
-After generating the full paper results, create the professor package with:
-
-```bash
-.venv/bin/python render_equations.py assets/equations
-python3 professor_handoff.py --results-dir results/paper --deliverables-dir deliverables --overwrite
-```
-
-The document step requires python-docx and LibreOffice. The ZIP contains the DOCX, matched PDF, summary, all figure formats and source data, Tables 1-9, captions, metadata, and this README.
